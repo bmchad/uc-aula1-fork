@@ -2,9 +2,9 @@
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
 
-#define TICK_MS 50   /* mdc(1000, 350) = 50 ms */
 #define TIME_1  1000 /* verde: alterna a cada 1 s */
 #define TIME_2  350  /* azul: alterna a cada 350 ms (desafio) */
+#define TIME_3 500 /* apenas por definir */
 
 // Define o LED usando Device Tree
 #define LED0_NODE DT_ALIAS(led0)
@@ -55,38 +55,68 @@ static int led_init(const struct gpio_dt_spec *led)
 	return 0;
 }
 
-int main(void)
+// Cada thread configura o próprio LED antes do laço: as threads do
+// K_THREAD_DEFINE com atraso 0 ficam prontas no boot, antes da main, então
+// não dá para depender da main ter configurado os pinos.
+static void pisca_verde_thread(void *arg1, void *arg2, void *arg3)
 {
-	if (led_init(&led_verde) < 0 ||
-	    led_init(&led_azul) < 0 ||
-	    led_init(&led_vermelho) < 0) {
-		return 0;
+	if (led_init(&led_verde) < 0) {
+		return;
 	}
 
+	while (1) {
+		gpio_pin_toggle_dt(&led_verde);
+		k_msleep(TIME_1);
+	}
+}
+
+static void pisca_azul_thread(void *arg1, void *arg2, void *arg3)
+{
+	if (led_init(&led_azul) < 0) {
+		return;
+	}
+
+	while (1) {
+		gpio_pin_toggle_dt(&led_azul);
+		k_msleep(TIME_2);
+	}
+}
+
+static void pisca_vermelho_thread(void *arg1, void *arg2, void *arg3)
+{
+	if (led_init(&led_vermelho) < 0) {
+		return;
+	}
+
+	while (1) {
+		gpio_pin_toggle_dt(&led_vermelho);
+		k_msleep(TIME_3);
+	}
+}
+
+#define TAMANHO_PILHA 512
+#define PRIORIDADE_1 1
+#define PRIORIDADE_2 2
+#define PRIORIDADE_3 3
+
+K_THREAD_DEFINE(id_thread_verde, TAMANHO_PILHA, 
+	pisca_verde_thread, NULL, NULL, NULL, PRIORIDADE_1, 0, 0);
+
+K_THREAD_DEFINE(id_thread_azul, TAMANHO_PILHA, 
+	pisca_azul_thread, NULL, NULL, NULL, PRIORIDADE_2, 0, 0);
+
+K_THREAD_DEFINE(id_thread_vermelho, TAMANHO_PILHA, 
+	pisca_vermelho_thread, NULL, NULL, NULL, PRIORIDADE_3, 0, 0);
+	
+
+
+int main(void)
+{
+	// Os LEDs são configurados pelas próprias threads; a main só informa os pinos
 	printk("LED blinking:\nGreen on %s pin %d\nBlue on %s pin %d\nRed on %s pin %d\n",
 	       led_verde.port->name, led_verde.pin,
 	       led_azul.port->name, led_azul.pin,
 	       led_vermelho.port->name, led_vermelho.pin);
-
-	// Prazos absolutos: cada LED alterna no seu próprio ritmo, sem deriva
-	int64_t next_verde = k_uptime_get() + TIME_1;
-	int64_t next_azul = k_uptime_get() + TIME_2;
-
-	while (1) {
-		int64_t now = k_uptime_get();
-
-		if (now >= next_verde) {
-			gpio_pin_toggle_dt(&led_verde);
-			next_verde += TIME_1; //1000
-		}
-
-		if (now >= next_azul) {
-			gpio_pin_toggle_dt(&led_azul);
-			next_azul += TIME_2; //350
-		}
-
-		k_msleep(TICK_MS); //mdc(350,1000)
-	}
 
 	return 0;
 }
