@@ -1,33 +1,64 @@
-## Prompt para IA: demonstração de Race Condition
+# PSI-Microcontroladores2-Aula07
+Atividade: Semáforos de Pedestres e Veículos
 
-Copie o bloco abaixo e cole em uma IA para gerar o código de `src/main.c` desta branch (`race-condition`).
+## Objetivo
+Desenvolver um sistema embarcado de controle de semáforos para pedestres e veículos, utilizando **threads** e **mutex**, e validar o funcionamento do código por meio de **testes utilizando o modelo V (testes unitários, de integração e de sistema)**.  
+Opcionalmente, alunos podem utilizar **IA generativa** para auxiliar na elaboração de trechos de código ou na geração de planos de teste, mas **a avaliação deve se concentrar na qualidade dos testes e na correta validação do sistema**.
 
-```text
-Atue como engenheiro de sistemas embarcados. Escreva um programa em C para a placa
-FRDM-KL25Z (Cortex-M0+, PlatformIO, framework Zephyr 4.2) que demonstre uma
-race condition causada por acesso não sincronizado a um recurso compartilhado.
+## Trabalho em Dupla
+- A atividade deve ser realizada **em duplas**.
+- Cada membro deve contribuir ativamente no desenvolvimento.
+- **Commits no repositório Git** devem ser feitos de forma individual, permitindo a avaliação das contribuições de cada aluno.
 
-Cenário real: contador de vagas de um estacionamento. Duas portarias (entrada e
-saída) são duas threads que compartilham uma variável `vagas_ocupadas`. Cada carro
-que entra faz +1 e cada carro que sai faz -1. Cada portaria processa 1000 carros.
-Ao final, o valor esperado é 0.
+## Descrição do Sistema
+O sistema deve controlar semáforos de dois tipos: pedestres e carros, incluindo **modo noturno** e **botão de travessia de pedestres**.
 
-Requisitos:
-1. O código deve compilar e rodar na placa sem alterar prj.conf nem platformio.ini.
-2. Use K_THREAD_DEFINE para as duas threads, com a mesma prioridade.
-3. A atualização do contador deve ser uma sequência ler -> modificar -> escrever.
-   Entre a leitura e a escrita, chame k_yield() para que a outra thread possa
-   rodar e a atualização se intercale. Não use atômicos nem desabilite interrupções
-   na versão sem proteção, porque isso esconderia o problema.
-4. Use uma macro USAR_MUTEX. Com 0, o programa mostra a race condition. Com 1, a
-   mesma seção crítica é protegida por k_mutex e o resultado deve ser 0.
-5. A main deve esperar as duas threads terminarem (por k_sem), imprimir o valor
-   final com printk e indicar OK ou ERRO com o número de atualizações perdidas.
-6. Comente o código em português, explicando a seção crítica e por que o erro
-   acontece.
-7. Ao final, explique em português: (a) em qual linha a intercalação ocorre,
-   (b) por que o resultado muda de execução para execução ou de modo para modo,
-   (c) por que volatile sozinho não resolve, e (d) como o k_mutex resolve.
-```
+### 1. Semáforo de Pedestres
+- Contém dois LEDs: verde e vermelho.
+- Comportamento:
+  - Verde acende por 4 segundos.
+  - Vermelho acende por 4 segundos.
+- Controle deve ser feito por **duas threads independentes**, garantindo exclusão mútua (**mutex**) entre verde e vermelho.
+- Deve ser utilizado o microcontrolador de um integrante.
 
-Resultado esperado: sem mutex, o contador final é diferente de 0 (com valor variável). Com mutex, o contador final é 0.
+### 2. Semáforo de Veículos
+- Contém três LEDs: verde, amarelo e vermelho.
+- Comportamento:
+  - Verde acende por 3 segundos.
+  - Amarelo acende por 1 segundo.
+  - Vermelho acende por 4 segundos.
+- Controle deve ser feito por **três threads independentes**, garantindo exclusão mútua (**mutex**) entre os LEDs.
+- Deve ser validado que há **sincronismo** entre o semáforo de pedestres e o semáforo de veículos.
+- Deve ser utilizado o microcontrolador do outro integrante.
+
+### 3. Modo Noturno
+- Um modo alternativo em que os semáforos piscam:
+  - Carros: amarelo piscando a cada 2 segundos (1 segundo aceso, 1 segundo apagado).
+  - Pedestres: vermelho piscando a cada 2 segundos (1 segundo aceso, 1 segundo apagado).
+
+### 4. Botão de Travessia
+- Permite que pedestres acionem o semáforo:
+  - Pedestre verde é ativado.
+  - Semáforo de carros é bloqueado de forma segura.
+- O sistema deve suportar uma única via
+- Controle de acesso deve garantir **consistência entre semáforos**, evitando conflito de LEDs.
+
+## Requisitos de Projeto
+1. Cada LED deve ser controlado por **uma thread**.
+2. Threads devem utilizar **mutex** para evitar conflitos.
+3. Modos de operação:
+   - Normal (dia)
+   - Noturno
+   - Travessia acionada pelo botão
+4. **Validação do código**
+   - Alunos devem elaborar **planos de testes completos**, seguindo o **modelo V**, para garantir o correto funcionamento de cada parte e do sistema completo.
+   - Testes devem incluir:
+     - Testes unitários (cada semáforo)
+     - Testes de integração (interação entre semáforos)
+     - Testes de sistema (modos noturno e botão de travessia)
+6. **Uso de IA generativa**
+   - Sugestão de uso para auxiliar na geração de código ou testes.
+   - A avaliação será baseada **na qualidade dos testes e nas evidências registradas no repositório**, não apenas na implementação do código.
+7. **Controle de contribuições individuais**
+   - Cada membro da dupla deve realizar **commits separados** no repositório.
+   - A avaliação individual considerará o histórico de commits e a participação de cada aluno no desenvolvimento e validação do sistema.
