@@ -1,39 +1,33 @@
-# PSI-Microcontroladores2-Aula01
+## Prompt para IA: demonstração de Race Condition
 
-Atividade prática inicial da aula 1 da disciplina Microcontroladores 2 (PSI).
+Copie o bloco abaixo e cole em uma IA para gerar o código de `src/main.c` desta branch (`race-condition`).
 
-Registre sua evolução utilizando os checklists abaixo por meio de commits com mensagens descritivas:
+```text
+Atue como engenheiro de sistemas embarcados. Escreva um programa em C para a placa
+FRDM-KL25Z (Cortex-M0+, PlatformIO, framework Zephyr 4.2) que demonstre uma
+race condition causada por acesso não sincronizado a um recurso compartilhado.
 
-### Setup (individual)
-- [ ] Possuo VSCode instalado
-- [ ] Possuo MCUXpresso instalado
-- [ ] Possuo PlatformIO instalado
-- [ ] Possuo cabo USB compatível com Placa Freedom
-- [ ] Possuo Placa Freedom operacional
-- [ ] Possuo Zephyr atualizado para versão 4.2
+Cenário real: contador de vagas de um estacionamento. Duas portarias (entrada e
+saída) são duas threads que compartilham uma variável `vagas_ocupadas`. Cada carro
+que entra faz +1 e cada carro que sai faz -1. Cada portaria processa 1000 carros.
+Ao final, o valor esperado é 0.
 
-Materiais para consulta: https://frdm-kl25z-com-zephyr-rtos.super.site/instalao, https://frdm-kl25z-com-zephyr-rtos.super.site/tutoriais/1-exemplo-pisca-led-rtos/atualizao-para-o-zephyr-42
+Requisitos:
+1. O código deve compilar e rodar na placa sem alterar prj.conf nem platformio.ini.
+2. Use K_THREAD_DEFINE para as duas threads, com a mesma prioridade.
+3. A atualização do contador deve ser uma sequência ler -> modificar -> escrever.
+   Entre a leitura e a escrita, chame k_yield() para que a outra thread possa
+   rodar e a atualização se intercale. Não use atômicos nem desabilite interrupções
+   na versão sem proteção, porque isso esconderia o problema.
+4. Use uma macro USAR_MUTEX. Com 0, o programa mostra a race condition. Com 1, a
+   mesma seção crítica é protegida por k_mutex e o resultado deve ser 0.
+5. A main deve esperar as duas threads terminarem (por k_sem), imprimir o valor
+   final com printk e indicar OK ou ERRO com o número de atualizações perdidas.
+6. Comente o código em português, explicando a seção crítica e por que o erro
+   acontece.
+7. Ao final, explique em português: (a) em qual linha a intercalação ocorre,
+   (b) por que o resultado muda de execução para execução ou de modo para modo,
+   (c) por que volatile sozinho não resolve, e (d) como o k_mutex resolve.
+```
 
-### Atividade Baremetal (implementação individual, validação em dupla)
-- [ ] Crie uma branch chamada baremetal
-- [ ] Compile e execute o exemplo de piscar led baremetal na placa Freedom com o Zephyr versão 4.2 (vide [https://frdm-kl25z-com-zephyr-rtos.super.site/tutoriais/2-pisca-led-simples](https://frdm-kl25z-com-zephyr-rtos.super.site/tutoriais/1-exemplo-pisca-led-rtos/atualizao-para-o-zephyr-42)). Dica: Utilize por enquanto somente o led da placa
-- [ ] Faça alterações no código para controlar dois leds: um led deve piscar a cada segundo, e o segundo led deve piscar a cada meio segundo
-- [ ] Desafio: tente fazer com que o primeiro led pisque a cada segundo, e o segundo led pisque a cada 350 ms
-- [ ] Crie um planejamento de testes para verificação do correto funcionamento, detalhando quais são os resultados esperados
-- [ ] Abra uma Pull Request
-- [ ] Seu par irá avaliar a Pull Request: adicionar sugestões em issues ou na discussão do PR (ATENÇÃO: o par deve tentar executar os testes propostos, e mesmo em caso de tudo funcionar, registrar em comentários como a validação foi realizada)
-- [ ] Após as pendências serem resolvidas, seu par irá validar as melhorias e aceitar a PR
-
-### Atividade Threads (implementação individual, validação em dupla)
-- [ ] Crie uma branch chamada threads
-- [ ] Compile e execute o exemplo de piscar led com threads na placa Freedom (vide [https://github.com/platformio/platform-freescalekinetis/blob/develop/examples/zephyr-blink/src/main.c e https://frdm-kl25z-com-zephyr-rtos.super.site/tutoriais/1-exemplo-pisca-led-rtos](https://frdm-kl25z-com-zephyr-rtos.super.site/tutoriais/threads-zephyr-42))
-- [ ] Faça alterações no código para controlar dois leds: um led deve piscar a cada segundo, e o segundo led deve piscar a cada meio segundo
-- [ ] Desafio: tente fazer com que o primeiro led pisque a cada segundo, e o segundo led pisque a cada 350 ms
-- [ ] Crie um planejamento de testes para verificação do correto funcionamento, detalhando quais são os resultados esperados
-- [ ] Abra uma Pull Request
-- [ ] Seu par irá avaliar a Pull Request: adicionar sugestões em issues ou na discussão do PR (ATENÇÃO: o par deve tentar executar os testes propostos, e mesmo em caso de tudo funcionar, registrar em comentários como a validação foi realizada)
-- [ ] Após as pendências serem resolvidas, seu par irá validar as melhorias e aceitar a PR
-
-### Desafio (individual)
-- [ ] Explore recursos de debug e faça um arquivo markdown mostrando como estes recursos podem ser úteis na identificação e correção de problemas
-- [ ] Reflita e responda em seu arquivo markdown: qual a diferença entre os recursos de debug e testes? São abordagens complementares?
+Resultado esperado: sem mutex, o contador final é diferente de 0 (com valor variável). Com mutex, o contador final é 0.

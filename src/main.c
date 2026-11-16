@@ -1,122 +1,84 @@
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-
-#define TIME_1  1000 /* verde: alterna a cada 1 s */
-#define TIME_2  350  /* azul: alterna a cada 350 ms (desafio) */
-#define TIME_3 500 /* apenas por definir */
-
-// Define o LED usando Device Tree
-#define LED0_NODE DT_ALIAS(led0)
-#define LED1_NODE DT_ALIAS(led1)
-#define LED2_NODE DT_ALIAS(led2)
-
 /*
-led0	verde	PTB19
-led1	azul	PTD1
-led2	vermelho	PTB18
-*/
+ * Race condition: contador de vagas de um estacionamento.
+ *
+ * Duas portarias (entrada e saída) compartilham a variável `vagas_ocupadas`.
+ * Cada carro que entra faz +1 e cada carro que sai faz -1. Como cada operação
+ * é uma sequência ler -> modificar -> escrever, quando as duas threads
+ * intercalam essas etapas uma atualização é perdida e o contador final
+ * deixa de bater com o número real de carros.
+ *
+ * USAR_MUTEX 0: versão com a condição de corrida (o erro aparece).
+ * USAR_MUTEX 1: versão corrigida, com k_mutex protegendo a seção crítica.
+ */
 
-// Verifica se o LED está definido no Device Tree
-#if DT_NODE_HAS_STATUS(LED0_NODE, okay)
-static const struct gpio_dt_spec led_verde = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
-#else
-#error "Unsupported board: led0 devicetree alias is not defined"
+#include <zephyr/kernel.h>
+#include <zephyr/sys/printk.h>
+
+#define USAR_MUTEX 0
+
+#define OPERACOES_POR_PORTARIA 1000   /* carros que entram e que saem */
+#define TAMANHO_PILHA          512
+#define PRIORIDADE_PORTARIA    5      /* mesma prioridade: uma cede a outra */
+
+/* Recurso compartilhado entre as duas threads */
+static volatile int vagas_ocupadas = 0;
+
+K_MUTEX_DEFINE(mutex_vagas);
+K_SEM_DEFINE(fim_portarias, 0, 2);
+
+/* Seção crítica: ler, modificar e escrever o contador */
+static void atualiza_vagas(int delta)
+{
+#if USAR_MUTEX
+	k_mutex_lock(&mutex_vagas, K_FOREVER);
 #endif
 
-#if DT_NODE_HAS_STATUS(LED1_NODE, okay)
-static const struct gpio_dt_spec led_azul = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
-#else
-#error "Unsupported board: led1 devicetree alias is not defined"
+	int atual = vagas_ocupadas;   /* 1. lê o valor */
+	k_yield();                    /* 2. a outra portaria pode rodar aqui */
+	vagas_ocupadas = atual + delta; /* 3. grava com base no valor lido antes */
+
+#if USAR_MUTEX
+	k_mutex_unlock(&mutex_vagas);
 #endif
-
-#if DT_NODE_HAS_STATUS(LED2_NODE, okay)
-static const struct gpio_dt_spec led_vermelho = GPIO_DT_SPEC_GET(LED2_NODE, gpios);
-#else
-#error "Unsupported board: led2 devicetree alias is not defined"
-#endif
-
-// Verifica se o device está pronto e configura o pino como saída, apagado
-static int led_init(const struct gpio_dt_spec *led)
-{
-	int ret;
-
-	if (!gpio_is_ready_dt(led)) {
-		printk("Error: LED device %s is not ready\n", led->port->name);
-		return -ENODEV;
-	}
-
-	ret = gpio_pin_configure_dt(led, GPIO_OUTPUT_INACTIVE);
-	if (ret < 0) {
-		printk("Error %d: failed to configure LED pin %d\n", ret, led->pin);
-		return ret;
-	}
-
-	return 0;
 }
 
-// Cada thread configura o próprio LED antes do laço: as threads do
-// K_THREAD_DEFINE com atraso 0 ficam prontas no boot, antes da main, então
-// não dá para depender da main ter configurado os pinos.
-static void pisca_verde_thread(void *arg1, void *arg2, void *arg3)
+static void portaria_entrada(void *p1, void *p2, void *p3)
 {
-	if (led_init(&led_verde) < 0) {
-		return;
+	for (int i = 0; i < OPERACOES_POR_PORTARIA; i++) {
+		atualiza_vagas(+1);
 	}
-
-	while (1) {
-		gpio_pin_toggle_dt(&led_verde);
-		k_msleep(TIME_1);
-	}
+	k_sem_give(&fim_portarias);
 }
 
-static void pisca_azul_thread(void *arg1, void *arg2, void *arg3)
+static void portaria_saida(void *p1, void *p2, void *p3)
 {
-	if (led_init(&led_azul) < 0) {
-		return;
+	for (int i = 0; i < OPERACOES_POR_PORTARIA; i++) {
+		atualiza_vagas(-1);
 	}
-
-	while (1) {
-		gpio_pin_toggle_dt(&led_azul);
-		k_msleep(TIME_2);
-	}
+	k_sem_give(&fim_portarias);
 }
 
-static void pisca_vermelho_thread(void *arg1, void *arg2, void *arg3)
-{
-	if (led_init(&led_vermelho) < 0) {
-		return;
-	}
-
-	while (1) {
-		gpio_pin_toggle_dt(&led_vermelho);
-		k_msleep(TIME_3);
-	}
-}
-
-#define TAMANHO_PILHA 512
-#define PRIORIDADE_1 1
-#define PRIORIDADE_2 2
-#define PRIORIDADE_3 3
-
-K_THREAD_DEFINE(id_thread_verde, TAMANHO_PILHA, 
-	pisca_verde_thread, NULL, NULL, NULL, PRIORIDADE_1, 0, 0);
-
-K_THREAD_DEFINE(id_thread_azul, TAMANHO_PILHA, 
-	pisca_azul_thread, NULL, NULL, NULL, PRIORIDADE_2, 0, 0);
-
-K_THREAD_DEFINE(id_thread_vermelho, TAMANHO_PILHA, 
-	pisca_vermelho_thread, NULL, NULL, NULL, PRIORIDADE_3, 0, 0);
-	
-
+K_THREAD_DEFINE(id_entrada, TAMANHO_PILHA, portaria_entrada,
+		NULL, NULL, NULL, PRIORIDADE_PORTARIA, 0, 0);
+K_THREAD_DEFINE(id_saida, TAMANHO_PILHA, portaria_saida,
+		NULL, NULL, NULL, PRIORIDADE_PORTARIA, 0, 0);
 
 int main(void)
 {
-	// Os LEDs são configurados pelas próprias threads; a main só informa os pinos
-	printk("LED blinking:\nGreen on %s pin %d\nBlue on %s pin %d\nRed on %s pin %d\n",
-	       led_verde.port->name, led_verde.pin,
-	       led_azul.port->name, led_azul.pin,
-	       led_vermelho.port->name, led_vermelho.pin);
+	printk("=== Race condition: contador de vagas ===\n");
+	printk("Modo: %s\n", USAR_MUTEX ? "COM mutex (correto)" : "SEM mutex (race condition)");
+	printk("Entradas e saidas: %d cada. Esperado no fim: 0 vagas ocupadas\n",
+	       OPERACOES_POR_PORTARIA);
+
+	k_sem_take(&fim_portarias, K_FOREVER);
+	k_sem_take(&fim_portarias, K_FOREVER);
+
+	printk("Vagas ocupadas no fim: %d\n", vagas_ocupadas);
+	if (vagas_ocupadas == 0) {
+		printk("Resultado: OK\n");
+	} else {
+		printk("Resultado: ERRO, %d atualizacoes perdidas\n", vagas_ocupadas);
+	}
 
 	return 0;
 }
