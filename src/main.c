@@ -1,83 +1,147 @@
 /*
- * Race condition: contador de vagas de um estacionamento.
+ * Acelerômetro MMA8451Q (FRDM-KL25Z) -> integração -> serial em CSV.
  *
- * Duas portarias (entrada e saída) compartilham a variável `vagas_ocupadas`.
- * Cada carro que entra faz +1 e cada carro que sai faz -1. Como cada operação
- * é uma sequência ler -> modificar -> escrever, quando as duas threads
- * intercalam essas etapas uma atualização é perdida e o contador final
- * deixa de bater com o número real de carros.
+ * A cada 50 ms (115200 bps) a placa envia uma linha com 9 campos:
+ *   ax,ay,az,vx,vy,vz,px,py,pz
+ *   ax..az em m/s² | vx..vz em m/s | px..pz em m
  *
- * USAR_MUTEX 0: versão com a condição de corrida (o erro aparece).
- * USAR_MUTEX 1: versão corrigida, com k_mutex protegendo a seção crítica.
+ * Calibração: a placa precisa ficar parada e na mesma orientação durante
+ * CALIBRACAO_MS. A média dessas leituras é subtraída de todas as leituras
+ * seguintes. Assim ax..az são aceleração dinâmica (zero em repouso) e a
+ * integração não acumula a gravidade (9,8 m/s²) como se fosse movimento.
+ *
+ * Limitação: integrar aceleração duas vezes faz qualquer erro de offset
+ * crescer com o tempo. A posição vai derivar em poucos segundos.
  */
 
 #include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/sensor.h>
 #include <zephyr/sys/printk.h>
 
-#define USAR_MUTEX 0
+#define PERIODO_MS        50
+#define DT_S              (PERIODO_MS / 1000.0f)
+#define CALIBRACAO_MS     2000
+#define AMOSTRAS_CAL      (CALIBRACAO_MS / PERIODO_MS)
 
-#define OPERACOES_POR_PORTARIA 1000   /* carros que entram e que saem */
-#define TAMANHO_PILHA          512
-#define PRIORIDADE_PORTARIA    5      /* mesma prioridade: uma cede a outra */
+/* 1: remove a média do repouso (gravidade e offset). 0: envia valores crus */
+#define REMOVER_GRAVIDADE 1
 
-/* Recurso compartilhado entre as duas threads */
-static volatile int vagas_ocupadas = 0;
+static const struct device *const acel = DEVICE_DT_GET(DT_NODELABEL(mma8451q));
 
-K_MUTEX_DEFINE(mutex_vagas);
-K_SEM_DEFINE(fim_portarias, 0, 2);
+static float offset[3];
+static float vel[3];
+static float pos[3];
 
-/* Seção crítica: ler, modificar e escrever o contador */
-static void atualiza_vagas(int delta)
+static int ler_aceleracao(float a[3])
 {
-#if USAR_MUTEX
-	k_mutex_lock(&mutex_vagas, K_FOREVER);
-#endif
+	struct sensor_value val[3];
+	int ret;
 
-	int atual = vagas_ocupadas;   /* 1. lê o valor */
-	k_yield();                    /* 2. a outra portaria pode rodar aqui */
-	vagas_ocupadas = atual + delta; /* 3. grava com base no valor lido antes */
-
-#if USAR_MUTEX
-	k_mutex_unlock(&mutex_vagas);
-#endif
-}
-
-static void portaria_entrada(void *p1, void *p2, void *p3)
-{
-	for (int i = 0; i < OPERACOES_POR_PORTARIA; i++) {
-		atualiza_vagas(+1);
+	ret = sensor_sample_fetch(acel);
+	if (ret < 0) {
+		return ret;
 	}
-	k_sem_give(&fim_portarias);
-}
 
-static void portaria_saida(void *p1, void *p2, void *p3)
-{
-	for (int i = 0; i < OPERACOES_POR_PORTARIA; i++) {
-		atualiza_vagas(-1);
+	ret = sensor_channel_get(acel, SENSOR_CHAN_ACCEL_XYZ, val);
+	if (ret < 0) {
+		return ret;
 	}
-	k_sem_give(&fim_portarias);
+
+	for (int i = 0; i < 3; i++) {
+		a[i] = sensor_value_to_float(&val[i]);
+	}
+
+	return 0;
 }
 
-K_THREAD_DEFINE(id_entrada, TAMANHO_PILHA, portaria_entrada,
-		NULL, NULL, NULL, PRIORIDADE_PORTARIA, 0, 0);
-K_THREAD_DEFINE(id_saida, TAMANHO_PILHA, portaria_saida,
-		NULL, NULL, NULL, PRIORIDADE_PORTARIA, 0, 0);
+/* Imprime com 3 casas decimais sem usar %f (printk não tem ponto flutuante) */
+static void imprime_valor(float v)
+{
+	int32_t mil = (int32_t)(v * 1000.0f + (v >= 0.0f ? 0.5f : -0.5f));
+	uint32_t abs_mil = (mil < 0) ? (uint32_t)(-mil) : (uint32_t)mil;
+
+	printk("%s%u.%03u", (mil < 0) ? "-" : "", abs_mil / 1000, abs_mil % 1000);
+}
+
+static void imprime_linha(const float v[9])
+{
+	for (int i = 0; i < 9; i++) {
+		imprime_valor(v[i]);
+		if (i < 8) {
+			printk(",");
+		} else {
+			printk("\n");
+		}
+	}
+}
+
+static int calibra(void)
+{
+	float soma[3] = {0};
+	float a[3];
+	int64_t proximo = k_uptime_get();
+
+	printk("Calibrando: mantenha a placa parada por %d ms...\n", CALIBRACAO_MS);
+
+	for (int n = 0; n < AMOSTRAS_CAL; n++) {
+		if (ler_aceleracao(a) < 0) {
+			printk("Erro na calibracao\n");
+			return -1;
+		}
+		for (int i = 0; i < 3; i++) {
+			soma[i] += a[i];
+		}
+		proximo += PERIODO_MS;
+		k_sleep(K_TIMEOUT_ABS_MS(proximo));
+	}
+
+	for (int i = 0; i < 3; i++) {
+		offset[i] = REMOVER_GRAVIDADE ? soma[i] / AMOSTRAS_CAL : 0.0f;
+	}
+
+	printk("Calibracao concluida\n");
+	return 0;
+}
 
 int main(void)
 {
-	printk("=== Race condition: contador de vagas ===\n");
-	printk("Modo: %s\n", USAR_MUTEX ? "COM mutex (correto)" : "SEM mutex (race condition)");
-	printk("Entradas e saidas: %d cada. Esperado no fim: 0 vagas ocupadas\n",
-	       OPERACOES_POR_PORTARIA);
+	if (!device_is_ready(acel)) {
+		printk("Erro: acelerometro MMA8451Q nao esta pronto\n");
+		return -1;
+	}
 
-	k_sem_take(&fim_portarias, K_FOREVER);
-	k_sem_take(&fim_portarias, K_FOREVER);
+	if (calibra() < 0) {
+		return -1;
+	}
 
-	printk("Vagas ocupadas no fim: %d\n", vagas_ocupadas);
-	if (vagas_ocupadas == 0) {
-		printk("Resultado: OK\n");
-	} else {
-		printk("Resultado: ERRO, %d atualizacoes perdidas\n", vagas_ocupadas);
+	/* Cabeçalho: o leitor_serial.py grava a primeira linha de 9 campos */
+	printk("ax,ay,az,vx,vy,vz,px,py,pz\n");
+
+	int64_t proximo = k_uptime_get();
+
+	while (1) {
+		float a[3];
+		float linha[9];
+
+		if (ler_aceleracao(a) < 0) {
+			/* Linha sem vírgulas: o leitor_serial.py descarta */
+			printk("# erro de leitura\n");
+		} else {
+			for (int i = 0; i < 3; i++) {
+				a[i] -= offset[i];
+				vel[i] += a[i] * DT_S;
+				pos[i] += vel[i] * DT_S;
+
+				linha[i] = a[i];
+				linha[i + 3] = vel[i];
+				linha[i + 6] = pos[i];
+			}
+			imprime_linha(linha);
+		}
+
+		proximo += PERIODO_MS;
+		k_sleep(K_TIMEOUT_ABS_MS(proximo));
 	}
 
 	return 0;
