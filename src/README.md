@@ -135,7 +135,8 @@ Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o ve
 
 | Caso | Problema | Solução no código |
 |---|---|---|
-| A escrava reinicia enquanto o mestre dá a vez | **Impasse.** A escrava espera ver VEZ em 0, e o mestre espera ela abrir. | Se a escrava não abrir em **3 s** (`RESPOSTA_MS`), o mestre **cancela** (VEZ = 0) e segue o próprio ciclo. A escrava completa o boot durante o verde do mestre. |
+| A escrava reinicia enquanto o mestre dá a vez | **Impasse.** A escrava espera ver VEZ em 0, e o mestre espera ela abrir. | Se a escrava não abrir em **3 s** (`RESPOSTA_MS`), o mestre **cancela** (VEZ = 0), espera **5 s** (`ESPERA_CANCELADA_MS`, linha abaixo) e segue o próprio ciclo. A escrava completa o boot durante o verde do mestre. |
+| Fio PARADO em curto com o GND (com sinais ativos em nível baixo, isso é PARADO = 1 para sempre) | **As duas ruas abrem juntas.** O mestre dá a vez, a escrava abre, e o mestre não vê PARADO = 0. Ele cancela depois de 3 s, lê PARADO = 1 e reabre com a escrava ainda aberta. | Depois de cancelar, o mestre espera o ciclo inteiro da escrava, verde mais amarelo mais 1 s de margem (`ESPERA_CANCELADA_MS` = 5 s), antes de seguir. Se ela abriu sem o mestre ver, já fechou. O revezamento continua, só que por tempo. |
 | O mestre cancela no mesmo instante em que a escrava decide abrir | **Race condition entre placas:** as duas poderiam abrir. | A escrava baixa PARADO, espera **50 ms** (`GUARDA_MS`) e **confere de novo** que VEZ continua em 1 antes de abrir; se não continuar, volta a PARADO = 1. O mestre, depois de baixar VEZ, também espera 50 ms antes de conferir PARADO. |
 | Boot | No primeiro ciclo não há vez para dar. | O mestre começa abrindo o próprio verde, assim que vê PARADO = 1. A escrava espera o VEZ = 0 estável e pega a vez no fim do primeiro ciclo do mestre. |
 
@@ -183,8 +184,9 @@ Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o ve
 
 | Situação | Resultado |
 |---|---|
-| Fio VEZ solto | A escrava lê 0 e nunca abre. O mestre não recebe a confirmação e também não reabre. **As duas ficam no vermelho.** |
+| Fio VEZ solto | A escrava lê 0 e nunca abre. O mestre não recebe a resposta, cancela a vez depois de 3 s, espera 5 s e segue o próprio ciclo. **A escrava fica no vermelho; nunca há as duas abertas.** |
 | Fio PARADO solto | O mestre lê 0 e nunca abre. **As duas ficam no vermelho.** |
+| Fio PARADO em curto com o GND | O mestre lê PARADO = 1 para sempre e não vê a escrava abrir. Ele cancela a vez depois de 3 s e espera 5 s, o ciclo inteiro dela, antes de reabrir. **O revezamento continua por tempo, e nunca há as duas abertas.** Sem essa espera, as duas abriam juntas. |
 | Fio NOTURNO solto | A escrava não entra no modo noturno. O mestre continua respeitando o handshake, então nunca há as duas abertas. |
 | Uma placa reseta no meio do ciclo | Ela volta fechada. Pelas regras do handshake, a outra fecha ao fim da sua fase e espera. |
 | `mestre` gravado nas duas placas | Cada uma lê o VEZ da outra, que é 0, como PARADO = 0. **Nenhuma abre.** |
@@ -199,7 +201,7 @@ Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha pisca
 - **Unitário (uma placa):**
   - **Etapa 1 (placa única):** ambiente `placa_unica` e a fiação da seção 4.4. Testa as cinco threads, os dois mutexes e a sincronia entre carros e pedestres da mesma placa, sem o handshake.
   - **Escrava sem mestre:** a `escrava` gravada numa placa sozinha. Os carros devem ficar no vermelho para sempre, com os pedestres no verde.
-  - **Mestre sem escrava:** ambiente `mestre` e o D11 ligado ao 3,3 V por um resistor de 1 kΩ. Isso simula uma escrava sempre parada e testa o cancelamento da vez: o vermelho dura os 3 s do prazo de resposta, com o aviso "escrava nao pegou a vez".
+  - **Mestre sem escrava, ou fio PARADO em curto:** ambiente `mestre` e o D11 ligado ao **GND** por um resistor de 1 kΩ. Como os sinais são ativos em nível baixo, isso simula uma escrava sempre parada. Testa o cancelamento da vez e a espera de segurança: o vermelho dura os 3 s do prazo mais os 5 s da espera, com o aviso "escrava nao pegou a vez: esperando o ciclo dela".
   - Tempos de cada luz.
   - Nunca duas luzes do mesmo semáforo acesas, contando o amarelo como uma luz só.
   - Debounce dos botões.
