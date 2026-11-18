@@ -1,0 +1,73 @@
+/*
+ * Pinos do semáforo. A fiação é a mesma nas duas placas (ver src/README.md).
+ *
+ * As entradas que precisam de interrupção ficam nas portas A e D: na KL25Z só
+ * essas portas geram interrupção por pino.
+ */
+
+#include <zephyr/dt-bindings/gpio/gpio.h>
+
+/* Os LEDs de pedestres ficam na porta C, que vem desabilitada */
+&gpioc {
+	status = "okay";
+};
+
+/ {
+	/* Saídas: LEDs de pedestres (acendem em nível alto) e sinais para a outra placa */
+	saidas_semaforo {
+		compatible = "gpio-leds";
+
+		ped_vermelho: ped_vermelho {
+			gpios = <&gpioc 8 GPIO_ACTIVE_HIGH>;
+			label = "Pedestres vermelho (PTC8, D6)";
+		};
+
+		ped_verde: ped_verde {
+			gpios = <&gpioc 9 GPIO_ACTIVE_HIGH>;
+			label = "Pedestres verde (PTC9, D7)";
+		};
+
+		saida_enlace: saida_enlace {
+			gpios = <&gpiod 3 GPIO_ACTIVE_HIGH>;
+			label = "VEZ (mestre) ou PARADO (escrava) (PTD3, D12)";
+		};
+
+		saida_noturno: saida_noturno {
+			gpios = <&gpiod 4 GPIO_ACTIVE_HIGH>;
+			label = "NOTURNO, so o mestre usa (PTD4, D2)";
+		};
+	};
+
+	/*
+	 * Entradas: botões e jumper são fios no GND (pull-up, ativos em 0); os
+	 * sinais da outra placa têm pull-down, para fio solto ler 0.
+	 */
+	entradas_semaforo {
+		compatible = "gpio-keys";
+
+		botao_noturno: botao_noturno {
+			gpios = <&gpiod 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			label = "Modo noturno, so no mestre (PTD5, D9)";
+		};
+
+		botao_travessia: botao_travessia {
+			gpios = <&gpiod 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			label = "Travessia (PTD0, D10)";
+		};
+
+		jumper_mestre: jumper_mestre {
+			gpios = <&gpioa 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			label = "Jumper no GND = mestre (PTA13, D8)";
+		};
+
+		entrada_enlace: entrada_enlace {
+			gpios = <&gpiod 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
+			label = "PARADO (no mestre) ou VEZ (na escrava) (PTD2, D11)";
+		};
+
+		entrada_noturno: entrada_noturno {
+			gpios = <&gpioa 12 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
+			label = "NOTURNO, so a escrava usa (PTA12, D3)";
+		};
+	};
+};

@@ -1,235 +1,215 @@
-# Esboço: semáforos de pedestres e veículos (Aula 07)
+# Projeto: semáforos de carros e pedestres em duas placas (Aula 07)
 
-## Objetivo
+Documento de projeto, escrito antes do código. É a referência para a fiação e a lógica. Substitui o esboço de 16/11, em que cada placa tinha um só semáforo, e o plano de 17/11, com um fio de PTD3 para PTD3. O enunciado da atividade está em [../README.md](../README.md).
 
-Esboçar a solução do sistema de semáforos da Aula 07 (enunciado em [../README.md](../README.md)) antes de implementá-la. O esboço mostra:
+## 1. O plano
 
-- como o sistema se divide entre as duas placas;
-- quais threads existem em cada placa e o que cada uma faz;
-- onde entram o mutex, os semáforos do Zephyr (`k_sem`) e os sinais entre as placas.
+- **Mesmo código nas duas placas:** as duas FRDM-KL25Z rodam o mesmo programa ao mesmo tempo.
+- **Cada placa é um cruzamento completo:**
+  - semáforo de **carros** no LED RGB da própria placa: vermelho, verde e amarelo (vermelho e verde acesos juntos);
+  - semáforo de **pedestres** em dois LEDs avulsos na protoboard, um verde e um vermelho. São 2 verdes e 2 vermelhos no total, um par por placa.
+- **A restrição pedida:** "se o PTB18 da outra placa estiver ligado, o meu PTB18 tem que estar desligado; o mesmo para o PTB19". Em termos de luz, os carros das duas placas nunca mostram a mesma cor. Ou seja, **as duas placas trabalham em fases opostas, como duas ruas que se cruzam**: quando uma rua está aberta, a outra está fechada.
 
-> Neste documento, "semáforo" sozinho é o semáforo de trânsito. A primitiva do Zephyr aparece sempre como `k_sem`.
+> **Atenção ao enunciado:** essa leitura foge do enunciado em dois pontos. Ele pede "uma única via" e coloca o semáforo de pedestres numa placa e o de veículos na outra. Vale confirmar com o professor antes de implementar.
 
-## Visão geral
+## 2. Problemas encontrados no plano e as correções
 
-O enunciado põe cada semáforo em uma placa. `k_mutex` e `k_sem` só funcionam dentro de uma placa, então o sincronismo entre as duas depende de fios entre elas.
+| # | Problema | Por que é um problema | Correção |
+|---|---|---|---|
+| 1 | Ler o PTB18 e o PTB19 da outra placa | Pelo pinout da FRDM-KL25Z, esses pinos **não estão em nenhum conector**: ligam só no LED RGB. Não há onde ligar o fio. | Cada placa **publica o próprio estado** num pino livre (saída) e **lê o da outra** em outro pino (entrada). |
+| 2 | Ligar um pino da placa A direto no mesmo pino da placa B | Se os dois forem saídas, quando um estiver em 1 e o outro em 0 há **curto entre as duas saídas**, e os pinos podem queimar. | Todo fio entre placas liga **uma saída a uma entrada**. Um resistor de 1 kΩ em série em cada fio limita a corrente se alguém configurar errado. |
+| 3 | "PTB18 mandando tensão" como sinal de "vermelho aceso" | O LED RGB acende em **nível baixo**: PTB18 em 3,3 V significa vermelho **apagado**. A regra ao pé da letra ficaria invertida. | Os sinais entre placas são definidos pelo **estado do semáforo** ("carros parados = 1"), não pela tensão do pino do LED. |
+| 4 | Regra por pino com o amarelo | O amarelo é o PTB18 e o PTB19 acesos juntos. Durante o amarelo de uma placa, a outra não poderia ter nem vermelho nem verde, e teria de **ficar apagada**. | A regra passa a valer para o **estado** (aberta ou fechada), não para cada pino. |
+| 5 | "Nunca vermelho nas duas ao mesmo tempo" | A segurança só exige que as duas ruas **nunca fiquem abertas** (verde ou amarelo) ao mesmo tempo. Na troca, uma rua precisa fechar antes de a outra abrir, então há um instante com as duas no vermelho, e **esse é o comportamento seguro**. Proibir isso obrigaria as duas placas a trocarem no mesmo instante exato, o que placas com relógios separados não garantem: qualquer atraso violaria uma das regras. | A única regra entre placas é: **nunca as duas abertas**. |
+| 6 | Cada placa decidir sozinha, olhando a outra | É uma **race condition entre placas**: cada uma lê "a outra está fechada" e abre; se as duas lerem no mesmo instante, as duas abrem. É o erro da Aula 4, só que agora `k_mutex` e `k_sem` não ajudam, porque não atravessam placas. Além disso, os relógios derivam, e os ciclos se desalinham com o tempo. | Uma placa é **mestre** e decide de quem é a vez; a outra é **escrava** e segue. O código é o mesmo nas duas, e um **jumper** define o papel. A escrava confirma que fechou antes de o mestre abrir. |
+| 7 | Um botão de modo noturno em cada placa | As placas poderiam discordar: uma piscando o amarelo e a outra com o verde aceso. | **Só o mestre** tem o botão do modo noturno e repassa o modo à escrava por um fio. |
 
-```
-         Placa A (pedestres)                        Placa B (veículos)
-  +------------------------------+          +------------------------------+
-  | LED RGB: verde e vermelho    |          | LEDs externos: verde,        |
-  | Botão de travessia (sw0)     |          | amarelo e vermelho           |
-  |                              |          | Chave do modo noturno (sw1)  |
-  |                       PEDIDO |--------->| PEDIDO                       |
-  |               CARROS_PARADOS |<---------| CARROS_PARADOS               |
-  |                      NOTURNO |<---------| NOTURNO                      |
-  |                          GND |----------| GND                          |
-  +------------------------------+          +------------------------------+
-```
+## 3. Arquitetura
 
-| Sinal | Direção | Significado |
+- **Dentro de cada placa:** é a mesma lógica da Aula 6.
+  - Uma thread por LED.
+  - Um `k_mutex` por semáforo, para a exclusão mútua entre as luzes.
+  - Uma cadeia de `k_sem` para a ordem entre as luzes.
+  - As interrupções só fazem `k_sem_give`, porque não podem usar mutex.
+- **Entre as placas:** um handshake de dois fios. O mestre dá a vez (sinal **VEZ**), e a escrava confirma quando fechou (sinal **PARADO**). Nenhuma placa abre sem a confirmação da outra.
+- **Mesmo programa nas duas placas:** a diferença de papel vem do jumper no pino D8.
+
+## 4. Conexões
+
+### 4.1 Em cada placa (mesma fiação nas duas)
+
+| Função | Pino | Conector | Ligação |
+|---|---|---|---|
+| Carros: vermelho | PTB18 | (LED RGB da placa) | Já ligado na placa |
+| Carros: verde | PTB19 | (LED RGB da placa) | Já ligado na placa |
+| Carros: amarelo | PTB18 + PTB19 | — | Os dois acesos juntos |
+| Pedestres: vermelho | PTC8 | D6 | D6 → resistor 220 Ω → perna longa (anodo) do LED vermelho; perna curta (catodo) → GND |
+| Pedestres: verde | PTC9 | D7 | D7 → resistor 220 Ω → perna longa do LED verde; perna curta → GND |
+| Botão de travessia | PTD0 | D10 | Encostar o fio do D10 no GND (pull-up interno) |
+| Botão do modo noturno | PTD5 | D9 | **Só no mestre.** Encostar o fio do D9 no GND (pull-up interno). Já configurado em `zephyr/app.overlay` e `lib/modo_noturno/`. |
+| Papel da placa | PTA13 | D8 | **Ligado ao GND = mestre.** Solto = escrava (pull-up interno). Não é usado na etapa 1 (seção 4.4). |
+
+- **Polaridade:** os LEDs avulsos acendem em **nível alto** (pino → resistor → LED → GND). O RGB da placa acende em **nível baixo**. O código usa a polaridade definida no devicetree para cada LED, então nos dois casos "1" quer dizer aceso.
+- **Resistor dos LEDs: 220 Ω,** o que está montado. Pela conta, a corrente fica em até ~6,4 mA para um LED vermelho (~1,9 V) e ~5,5 mA para um verde comum (~2,1 V). O PTC8 e o PTC9 são pinos de corrente normal: o datasheet da KL25Z garante a tensão de saída até 5 mA, e o limite absoluto é de 25 mA por pino. Acima de 5 mA a tensão no pino cai alguns décimos de volt, o que também segura a corrente. **Não use menos de 220 Ω.** Um verde do tipo de 3 V acende mais fraco, mas acende.
+
+### 4.2 Entre as placas
+
+| Fio | De | Para | Sinal | Significado |
+|---|---|---|---|---|
+| 1 | GND | GND | — | Referência comum. **Obrigatório:** sem ele, os níveis dos outros fios não têm significado. |
+| 2 | D12 (PTD3) do **mestre** | D11 (PTD2) da **escrava** | VEZ | 1 = o mestre está com os carros parados e a vez é da escrava |
+| 3 | D12 (PTD3) da **escrava** | D11 (PTD2) do **mestre** | PARADO | 1 = a escrava está com os carros parados |
+| 4 | D2 (PTD4) do **mestre** | D3 (PTA12) da **escrava** | NOTURNO | 1 = modo noturno |
+
+- **Proteção:** um resistor de **1 kΩ em série** em cada fio de sinal (fios 2, 3 e 4).
+- **Entradas com pull-down:** todas as entradas de sinal usam pull-down interno. Fio solto lê 0, e 0 nunca libera nenhuma rua (seção 6).
+- **Fios 2 e 3:** são a mesma ligação nos dois sentidos (D12 de uma placa no D11 da outra). Só o fio 4 tem direção fixa. Se o papel das placas for trocado, é preciso inverter só esse fio.
+
+### 4.3 Pinos que não devem ser usados
+
+| Conector | Pino | Motivo |
 |---|---|---|
-| `CARROS_PARADOS` | B → A | Fica em 1 enquanto o vermelho dos veículos está aceso. Só ele libera o verde dos pedestres. |
-| `NOTURNO` | B → A | Fica em 1 enquanto a placa B está no modo noturno. |
-| `PEDIDO` | A → B | Pulso enviado quando o botão de travessia é apertado. |
+| D0, D1 | PTA1, PTA2 | Console serial (UART0) |
+| D4 | PTA4 | É o NMI. Se estiver em 0 no reset, a placa trava. |
+| D13 | PTD1 | LED azul da placa |
 
-A placa B comanda o ciclo e a placa A obedece. Quem decide é o lado que pode causar um atropelamento.
+As entradas que precisam de interrupção ficam nas portas A e D (D9, D10, D11 e D3). Na KL25Z, só essas portas geram interrupção por pino.
 
-As entradas da placa A usam pull-down. Se um fio soltar, `CARROS_PARADOS` lê 0 e os pedestres ficam no vermelho, que é a falha segura.
+### 4.4 Etapa 1: uma placa só
 
-## Ciclo normal (8 s)
+Na etapa 1 a placa roda sozinha, com `#define UMA_PLACA true` em `src/main.c`. O jumper do D8 e os fios entre placas (seção 4.2) não são usados, e os pinos deles ficam desligados. As cinco threads e os dois mutexes são os mesmos da etapa 2. Só o vermelho dos carros muda: sem a outra placa para esperar, ele dura 4 s fixos.
 
-| Tempo | Veículos | Pedestres | `CARROS_PARADOS` |
-|---|---|---|---|
-| 0 a 3 s | verde | vermelho | 0 |
-| 3 a 4 s | amarelo | vermelho | 0 |
-| 4 a 8 s | vermelho | verde | 1 |
-
-Os dois ciclos têm 8 s. O verde mais o amarelo dos veículos (3 + 1 s) coincide com o vermelho dos pedestres (4 s), e o vermelho dos veículos (4 s) coincide com o verde dos pedestres (4 s). Por isso a placa A não conta o próprio ciclo, só segue `CARROS_PARADOS`.
-
-## Threads
-
-Cada LED tem uma thread, como o enunciado pede. A ordem entre elas é uma cadeia de `k_sem`: cada thread espera a sua vez e, ao terminar, passa a vez para a próxima. Os botões e a chave são tratados por interrupção (ISR). A ISR não pode usar mutex, então ela só chama `k_sem_give` e acorda uma thread.
-
-### Placa B (veículos)
-
-| Thread | O que faz | Espera | Ao terminar |
-|---|---|---|---|
-| `t_carro_verde` | Acende o verde por 3 s. Um pedido de travessia encerra o verde mais cedo, respeitando 1 s mínimo. | `vez_verde` | dá `vez_amarelo` |
-| `t_carro_amarelo` | No modo normal, acende o amarelo por 1 s. No noturno, pisca 1 s aceso e 1 s apagado e liga a saída `NOTURNO`. | `vez_amarelo` | dá `vez_vermelho` |
-| `t_carro_vermelho` | Acende o vermelho por 4 s e mantém `CARROS_PARADOS = 1` nesse período. | `vez_vermelho` | dá `vez_verde`, ou `vez_amarelo` se o modo for noturno |
-| `t_modo` | Trata a chave sw1 com debounce e alterna a variável `modo`. | `chave_modo`, dado pela ISR da sw1 | (nada) |
-
-ISR da entrada `PEDIDO`: chama `k_sem_give(&pedido)`. Quem consome é o verde, ou o amarelo no modo noturno.
-
-### Placa A (pedestres)
-
-| Thread | O que faz | Espera | Ao terminar |
-|---|---|---|---|
-| `t_ped_vermelho` | Acende o vermelho até `CARROS_PARADOS` subir. Com `NOTURNO = 1`, pisca 1 s aceso e 1 s apagado. | `vez_ped_vermelho` | dá `vez_ped_verde` |
-| `t_ped_verde` | Acende o verde até `CARROS_PARADOS` descer, por no máximo 4 s. | `vez_ped_verde` | dá `vez_ped_vermelho` |
-| `t_botao` | Trata o botão sw0 com debounce e manda um pulso em `PEDIDO`. | `botao`, dado pela ISR da sw0 | (nada) |
-
-ISR da entrada `CARROS_PARADOS`, nas duas bordas: na subida dá `carros_pararam`, na descida dá `carros_andam`.
-
-`t_modo` e `t_botao` têm prioridade maior que as threads dos LEDs (número menor no Zephyr), porque são curtas e precisam responder rápido.
-
-## Onde entra cada primitiva
-
-| Primitiva | Placa | Para quê |
+| O que | Ligação | Obrigatório? |
 |---|---|---|
-| `mutex_carros` | B | Envolve acender e apagar qualquer LED dos veículos. |
-| `mutex_modo` | B | Protege a variável `modo`, escrita por `t_modo` e lida pelo vermelho e pelo amarelo. |
-| `mutex_ped` | A | Envolve acender e apagar qualquer LED dos pedestres. |
-| `vez_*` (`k_sem`) | A e B | Ordem entre as threads dos LEDs. |
-| `pedido`, `chave_modo`, `botao`, `carros_pararam`, `carros_andam` (`k_sem`) | A e B | Avisam uma thread de que uma ISR viu um evento. |
+| USB | Conector **SDA** da placa (gravação e serial) | Sim |
+| LED verde dos pedestres | D7 → resistor de 220 Ω → perna longa (anodo) do LED; perna curta (catodo) → GND | Sim |
+| LED vermelho dos pedestres | D6 → resistor de 220 Ω → perna longa do LED; perna curta → GND | Não. Sem ele, o vermelho dos pedestres aparece só na serial. |
+| Botão de travessia | Um fio no D10; para apertar, encoste a outra ponta no GND | Não |
+| Botão do modo noturno | Um fio no D9; para apertar, encoste a outra ponta no GND | Não |
 
-Com a cadeia de `k_sem`, só uma thread tem a vez por vez. No funcionamento normal, então, não é o mutex que evita dois LEDs acesos. O mutex é exigido pelo enunciado e funciona como garantia: se uma mudança quebrar a cadeia, por exemplo com dois `k_sem_give` seguidos, o mutex ainda impede o conflito. Um teste unitário pode provar isso forçando essa falha.
+- **GND:** o pino ao lado do D13, no mesmo conector do D8 ao D13, ou qualquer GND do conector de alimentação.
+- **Com um LED só, use o verde no D7:** ele mostra direto a regra de segurança, porque o verde dos pedestres só pode acender com o LED RGB da placa no vermelho.
+- **Monte com o USB desligado.** Confira a perna longa do LED do lado do resistor: invertido, ele não acende, mas não queima.
 
-Nas threads da placa A, a thread segura o mutex enquanto espera um `k_sem`. Isso não trava o sistema porque quem dá esse `k_sem` é uma ISR, que nunca pede o mutex.
+**O que deve acontecer** (ciclo de 8 s, começando no reset):
 
-## Modos de operação
+| Tempo | LED RGB (carros) | LED do D7 (pedestres, verde) | Serial |
+|---|---|---|---|
+| 0 a 4 s | vermelho | aceso | `carros VERMELHO`, `pedestres VERDE` |
+| 4 a 7 s | verde | apagado | `pedestres VERMELHO`, `carros VERDE` |
+| 7 a 8 s | amarelo (vermelho + verde) | apagado | `carros AMARELO` |
 
-**Normal.** É o ciclo de 8 s da tabela acima.
+- **Travessia:** com o verde dos carros aceso há mais de 1 s, encostar o D10 no GND encerra o verde na hora (`travessia pedida: verde encurtado`). Os carros passam pelo amarelo e o LED do D7 acende.
+- **Modo noturno:** um toque do D9 no GND pede o modo (`botao noturno: pedido NOTURNO`). A placa termina o ciclo até o fim do vermelho, o que leva até 8 s. Depois o LED RGB pisca o amarelo, 1 s aceso e 1 s apagado. O LED do D7 fica apagado, e o vermelho dos pedestres pisca no D6. Outro toque sai do modo: os carros vão para o vermelho e os pedestres, para o verde.
+- **Para a etapa 2:** `#define UMA_PLACA false` e a fiação das seções 4.1 e 4.2.
 
-**Travessia (botão sw0, na placa A).** O pedido chega à placa B. Se os carros estão no verde, o verde termina depois do mínimo de 1 s. Em seguida vêm amarelo (1 s) e vermelho (4 s), com o verde dos pedestres. O amarelo sempre passa, então nunca há salto de verde para vermelho. Um pedido feito durante o amarelo ou o vermelho é descartado, porque a travessia já está a caminho.
+## 5. Lógica
 
-**Noturno (chave sw1, na placa B).**
-- **Entrada:** ao terminar, o vermelho dos veículos passa a vez ao amarelo em vez do verde. O amarelo pisca e liga `NOTURNO`, e a placa A pisca o vermelho. A entrada só acontece nesse ponto seguro, então pode demorar até um ciclo (8 s).
-- **Saída:** o amarelo fica 1 s aceso fixo, desliga `NOTURNO` e passa a vez ao vermelho.
-- **Botão no noturno (proposta):** o amarelo fica 1 s fixo e passa a vez ao vermelho. A travessia acontece, e o ciclo volta a piscar.
+### 5.1 Ciclo normal (8 s)
 
-## Esboço de código
+| Tempo | Carros do mestre | Pedestres do mestre | Carros da escrava | Pedestres da escrava | VEZ | PARADO |
+|---|---|---|---|---|---|---|
+| 0 a 3 s | verde | vermelho | vermelho | verde | 0 | 1 |
+| 3 a 4 s | amarelo | vermelho | vermelho | verde | 0 | 1 |
+| 4 a 7 s | vermelho | verde | verde | vermelho | 1 | 0 |
+| 7 a 8 s | vermelho | verde | amarelo | vermelho | 1 | 0 |
 
-Este código é um esboço e não foi compilado. Ele omite a configuração dos GPIOs, das interrupções e o `K_THREAD_DEFINE`.
+Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o verde mais o amarelo da outra (3 + 1 s). Os pedestres de cada placa ficam no verde durante o vermelho dos próprios carros (4 s), e no vermelho durante o verde e o amarelo deles (4 s).
 
-### Placa B (veículos)
+### 5.2 Regras do handshake
 
-```c
-K_MUTEX_DEFINE(mutex_carros);
-K_SEM_DEFINE(vez_verde,    1, 1);   /* o ciclo começa no verde */
-K_SEM_DEFINE(vez_amarelo,  0, 1);
-K_SEM_DEFINE(vez_vermelho, 0, 1);
-K_SEM_DEFINE(pedido,       0, 1);   /* dado pela ISR de PEDIDO */
+**Mestre:**
+1. Só abre (verde) com **VEZ = 0 e PARADO = 1**.
+2. Só levanta VEZ depois que os próprios carros estão no vermelho.
+3. Baixa VEZ quando vê PARADO voltar para 1, ou seja, quando a escrava fechou.
 
-#define VERDE_MS     3000
-#define VERDE_MIN_MS 1000
-#define VERMELHO_MS  4000
+**Escrava:**
+1. Só abre numa **subida de VEZ**, e só depois de ter visto VEZ em 0 por pelo menos 1 s desde o boot.
+2. Baixa PARADO **antes** de abrir.
+3. Levanta PARADO só **depois** de voltar ao vermelho.
 
-void t_carro_verde(void *a, void *b, void *c)
-{
-	while (1) {
-		k_sem_take(&vez_verde, K_FOREVER);
-		k_sem_reset(&pedido);                   /* descarta pedido antigo */
-		k_mutex_lock(&mutex_carros, K_FOREVER);
-		gpio_pin_set_dt(&led_verde, 1);
-		k_msleep(VERDE_MIN_MS);
-		/* volta antes do tempo se chegar um pedido de travessia */
-		k_sem_take(&pedido, K_MSEC(VERDE_MS - VERDE_MIN_MS));
-		gpio_pin_set_dt(&led_verde, 0);
-		k_mutex_unlock(&mutex_carros);
-		k_sem_give(&vez_amarelo);
-	}
-}
+**Por que bordas e não níveis:** se a escrava olhasse só o nível, um VEZ ainda em 1 de um ciclo anterior a faria abrir de novo. A exigência de ver VEZ em 0 depois do boot protege contra a configuração errada de duas escravas (seção 6).
 
-void t_carro_vermelho(void *a, void *b, void *c)
-{
-	while (1) {
-		k_sem_take(&vez_vermelho, K_FOREVER);
-		k_mutex_lock(&mutex_carros, K_FOREVER);
-		gpio_pin_set_dt(&led_vermelho, 1);
-		gpio_pin_set_dt(&saida_carros_parados, 1);  /* libera os pedestres */
-		k_msleep(VERMELHO_MS);
-		gpio_pin_set_dt(&saida_carros_parados, 0);  /* antes de apagar o vermelho */
-		gpio_pin_set_dt(&led_vermelho, 0);
-		k_mutex_unlock(&mutex_carros);
-		k_sem_give(modo_noturno() ? &vez_amarelo : &vez_verde);
-	}
-}
+**Casos que só apareceram ao detalhar o código:**
 
-void isr_pedido(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
-{
-	k_sem_give(&pedido);   /* ISR: nada de mutex */
-}
-```
+| Caso | Problema | Solução no código |
+|---|---|---|
+| A escrava reinicia enquanto o mestre dá a vez | **Impasse.** A escrava espera ver VEZ em 0, e o mestre espera ela abrir. | Se a escrava não abrir em **3 s** (`RESPOSTA_MS`), o mestre **cancela** (VEZ = 0) e segue o próprio ciclo. A escrava completa o boot durante o verde do mestre. |
+| O mestre cancela no mesmo instante em que a escrava decide abrir | **Race condition entre placas:** as duas poderiam abrir. | A escrava baixa PARADO, espera **50 ms** (`GUARDA_MS`) e **confere de novo** que VEZ continua em 1 antes de abrir; se não continuar, volta a PARADO = 1. O mestre, depois de baixar VEZ, também espera 50 ms antes de conferir PARADO. |
+| Boot | No primeiro ciclo não há vez para dar. | O mestre começa abrindo o próprio verde, assim que vê PARADO = 1. A escrava espera o VEZ = 0 estável e pega a vez no fim do primeiro ciclo do mestre. |
 
-### Placa A (pedestres)
+### 5.3 Threads e primitivas em cada placa
 
-```c
-K_MUTEX_DEFINE(mutex_ped);
-K_SEM_DEFINE(vez_ped_vermelho, 1, 1);   /* começa no vermelho */
-K_SEM_DEFINE(vez_ped_verde,    0, 1);
-K_SEM_DEFINE(carros_pararam,   0, 1);
-K_SEM_DEFINE(carros_andam,     0, 1);
+| Thread | Controla | Observação |
+|---|---|---|
+| `t_carro_verde` | PTB19 | 3 s. O botão de travessia encurta o verde, respeitando 1 s mínimo. |
+| `t_carro_amarelo` | PTB18 + PTB19 | 1 s. No modo noturno, pisca. |
+| `t_carro_vermelho` | PTB18 | Faz o handshake com a outra placa e libera os pedestres da própria placa. Na etapa 1, sem a outra placa, dura 4 s fixos. |
+| `t_ped_verde` | D7 | Só acende com os carros da própria placa no vermelho. |
+| `t_ped_vermelho` | D6 | No modo noturno, pisca. |
+| (sem thread) | — | A interrupção do botão de travessia (D10) avisa `t_carro_verde` por `k_sem`. **Não precisa de debounce:** encurtar o verde atual pode acontecer várias vezes sem efeito extra, e o verde descarta os toques antigos ao começar. |
+| `t_botao_noturno` | — | Só no mestre. Já existe em `lib/modo_noturno/`. |
 
-void t_ped_vermelho(void *a, void *b, void *c)
-{
-	while (1) {
-		k_sem_take(&vez_ped_vermelho, K_FOREVER);
-		k_mutex_lock(&mutex_ped, K_FOREVER);
-		gpio_pin_set_dt(&led_vermelho, 1);
-		/* espera os carros pararem; no modo noturno, pisca enquanto espera */
-		while (k_sem_take(&carros_pararam, K_SECONDS(1)) != 0) {
-			if (gpio_pin_get_dt(&entrada_noturno)) {
-				gpio_pin_toggle_dt(&led_vermelho);
-			} else {
-				gpio_pin_set_dt(&led_vermelho, 1);
-			}
-		}
-		gpio_pin_set_dt(&led_vermelho, 0);
-		k_mutex_unlock(&mutex_ped);
-		k_sem_give(&vez_ped_verde);
-	}
-}
+- **`mutex_carros`:** exclusão mútua entre as três luzes dos carros.
+- **`mutex_pedestres`:** exclusão mútua entre as duas luzes dos pedestres.
+- **Cadeia de `k_sem`:** a ordem verde → amarelo → vermelho, e a passagem para os pedestres dentro da placa.
+- **Interrupções** dos botões e das entradas VEZ, PARADO e NOTURNO: só `k_sem_give`.
 
-void t_ped_verde(void *a, void *b, void *c)
-{
-	while (1) {
-		k_sem_take(&vez_ped_verde, K_FOREVER);
-		k_sem_reset(&carros_andam);   /* descarta descida de um ciclo anterior */
-		k_mutex_lock(&mutex_ped, K_FOREVER);
-		gpio_pin_set_dt(&led_verde, 1);
-		k_sem_take(&carros_andam, K_MSEC(4000));   /* apaga na descida ou em 4 s */
-		gpio_pin_set_dt(&led_verde, 0);
-		k_mutex_unlock(&mutex_ped);
-		k_sem_give(&vez_ped_vermelho);
-	}
-}
+### 5.4 Travessia e modo noturno
 
-void isr_carros_parados(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
-{
-	if (gpio_pin_get_dt(&entrada_carros_parados)) {
-		k_sem_give(&carros_pararam);
-	} else {
-		k_sem_give(&carros_andam);
-	}
-}
-```
+- **Travessia:** o botão de cada placa encurta o verde dos **próprios** carros, que passam pelo amarelo e fecham. Isso só antecipa a troca de vez e **não precisa de fio extra**.
+- **Modo noturno:**
+  - **Entrada:** o botão do mestre alterna o modo. O mestre leva o próprio ciclo até o vermelho, que é o ponto seguro, e só então levanta NOTURNO. As duas placas passam a piscar o amarelo dos carros e o vermelho dos pedestres, 1 s aceso e 1 s apagado.
+  - **Saída:** o mestre baixa NOTURNO, e as duas placas vão para o vermelho. O mestre volta dando a vez, então **a escrava abre primeiro**. Durante o modo noturno o mestre mantém VEZ = 0, por isso o primeiro VEZ = 1 depois dele é uma vez nova para a escrava.
 
-O `k_sem_reset(&carros_andam)` é necessário. Sem ele, quando o verde termina pelos 4 s antes da descida do sinal, essa descida fica guardada no `k_sem`. No ciclo seguinte, o verde apagaria assim que acendesse.
+### 5.5 Organização do código
 
-## Pontos de teste que o esboço cria
+| Biblioteca | Responsabilidade | Funções públicas |
+|---|---|---|
+| `lib/enlace` | Pinos entre as placas e papel pelo jumper. A interrupção da entrada só acorda quem espera, e quem espera sempre confere o nível de novo. | `enlace_iniciar`, `enlace_sou_mestre`, `enlace_uma_placa`, `enlace_publicar`, `enlace_ler`, `enlace_esperar`, `enlace_aguardar_mudanca`, `enlace_publicar_noturno`, `enlace_ler_noturno` |
+| `lib/modo_noturno` | Separa o **pedido** (botão no mestre, fio NOTURNO na escrava) do **modo efetivo**, que só muda no ponto seguro | `modo_noturno_iniciar`, `modo_noturno_pedido`, `modo_noturno_aplicar`, `modo_noturno_ativo` |
+| `lib/semaforo_pedestres` | Threads do vermelho e do verde dos pedestres, com `mutex_pedestres` | `semaforo_pedestres_iniciar`, `semaforo_pedestres_liberar`, `semaforo_pedestres_encerrar` |
+| `lib/semaforo_veiculo` | Threads do verde, do amarelo e do vermelho dos carros, com `mutex_carros`; handshake e botão de travessia | `semaforo_veiculo_iniciar` |
+| `src/main.c` | Inicia as quatro, nesta ordem. `UMA_PLACA` escolhe a etapa 1 (placa única, seção 4.4) ou a etapa 2 (duas placas). | — |
 
-- **Unitário:**
-  - Duração de cada LED.
-  - Nunca dois LEDs acesos no mesmo semáforo, inclusive forçando a quebra da cadeia de `k_sem`.
+- **Pinos:** estão todos em `zephyr/app.overlay`. A porta C, dos LEDs de pedestres, é habilitada lá.
+- **Serial (115200 bps):** cada troca de luz sai como `tempo ms | carros VERDE` ou `tempo ms | pedestres VERMELHO`. Com a serial das duas placas gravada, dá para conferir que as ruas nunca abriram juntas.
+
+## 6. Falha segura
+
+| Situação | Resultado |
+|---|---|
+| Fio VEZ solto | A escrava lê 0 e nunca abre. O mestre não recebe a confirmação e também não reabre. **As duas ficam no vermelho.** |
+| Fio PARADO solto | O mestre lê 0 e nunca abre. **As duas ficam no vermelho.** |
+| Fio NOTURNO solto | A escrava não entra no modo noturno. O mestre continua respeitando o handshake, então nunca há as duas abertas. |
+| Uma placa reseta no meio do ciclo | Ela volta fechada. Pelas regras do handshake, a outra fecha ao fim da sua fase e espera. |
+| Duas placas com jumper (dois mestres) | Cada uma lê o VEZ da outra, que é 0, como PARADO = 0. **Nenhuma abre.** |
+| Nenhuma placa com jumper (duas escravas) | Se as duas ligarem juntas, cada uma vê o PARADO da outra sempre em 1, nunca vê VEZ em 0, e **nenhuma abre**. Se uma ligar bem depois da outra, elas podem se revezar, porque cada uma só abre quando a outra acabou de fechar. **Em nenhum caso as duas abrem juntas.** |
+| Fio GND solto | Os níveis ficam indefinidos. Por isso o fio de GND é obrigatório e deve ser o primeiro a ser ligado. |
+
+Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha piscando o vermelho dos carros.
+
+## 7. Pontos de teste que esta arquitetura cria (modelo V)
+
+- **Unitário (uma placa):**
+  - **Etapa 1 (placa única):** `UMA_PLACA true` e a fiação da seção 4.4. Testa as cinco threads, os dois mutexes e a sincronia entre carros e pedestres da mesma placa, sem o handshake.
+  - **Mestre sem escrava:** `UMA_PLACA false`, jumper no D8 e o D11 ligado ao 3,3 V por um resistor de 1 kΩ. Isso simula uma escrava sempre parada e testa o cancelamento da vez: o vermelho dura os 3 s do prazo de resposta, com o aviso "escrava nao pegou a vez".
+  - Tempos de cada luz.
+  - Nunca duas luzes do mesmo semáforo acesas, contando o amarelo como uma luz só.
   - Debounce dos botões.
-- **Integração:**
-  - O verde dos pedestres só acende com `CARROS_PARADOS = 1`.
-  - Medir o atraso entre `CARROS_PARADOS` cair e o verde dos pedestres apagar.
-  - Ligar as placas em ordens diferentes.
-  - Soltar o fio de `CARROS_PARADOS` no meio do ciclo.
+- **Integração (duas placas):**
+  - **Nunca as duas ruas abertas,** registrando a serial das duas placas com o tempo de cada linha.
+  - Soltar cada fio no meio do ciclo.
+  - Jumper nas duas placas e em nenhuma.
+  - Resetar uma placa no meio do ciclo.
+  - Medir o atraso do handshake.
 - **Sistema:**
-  - Botão em cada fase (verde, amarelo, vermelho e noturno).
-  - Entrada e saída do modo noturno em cada fase, com a latência máxima.
-  - Botão apertado várias vezes seguidas.
+  - Travessia em cada fase.
+  - Entrada e saída do modo noturno em cada fase.
+  - Botões apertados várias vezes seguidas.
 
-## Pontos em aberto (confirmar com o professor)
+## 8. Pontos em aberto
 
-1. **Comunicação entre as placas:** o enunciado não diz como as placas conversam. Este esboço usa 3 fios de GPIO e GND. A outra opção é UART, mas a UART0 já é o console.
-2. **Comportamento do botão:** este esboço faz o botão encurtar o verde dos carros. A outra leitura é "carros sempre no verde até alguém apertar".
-3. **Ativação do modo noturno:** o enunciado não diz como se entra no modo noturno. Este esboço usa a chave sw1 na placa B.
-4. **LED amarelo:** a FRDM-KL25Z não tem LED amarelo, então a placa B precisa de 3 LEDs externos, declarados num overlay de devicetree. Misturar o vermelho e o verde do RGB dá amarelo, mas acende dois LEDs ao mesmo tempo, o que contradiz a exclusão mútua.
-5. **Botões:** o devicetree declara `sw0` (PTA16) e `sw1` (PTA17) ativos em nível baixo. Conferir se a placa tem esses botões soldados. Se não tiver, é preciso ligar botões externos entre esses pinos e o GND.
-6. **Pinos dos fios e dos LEDs externos:** ainda faltam escolher. Os pinos não podem conflitar com a I2C0 (acelerômetro), a UART0 (console) e os LEDs da placa.
-7. **Intervalo todos-vermelhos:** o enunciado não pede um intervalo com todos os sinais no vermelho. Sem ele, a troca entre o verde dos pedestres e o verde dos carros depende só da latência entre as placas, de poucos milissegundos. Vale medir no teste de integração.
+1. **Leitura do plano:** confirmar com o professor a ideia de duas ruas, por causa do enunciado (seção 1).
+2. **Pinos PTB18 e PTB19:** conferir na placa que eles não estão em nenhum conector. Não muda a solução, porque mesmo que estivessem, ligar saída com saída continuaria proibido (problema 2).
+3. **Resistor dos LEDs:** resolvido. A montagem usa 220 Ω (seção 4.1).
