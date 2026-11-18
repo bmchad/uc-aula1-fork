@@ -1,13 +1,13 @@
 /*
  * Placa MESTRE: semáforo de carros e pedestres.
  *
- * Etapa 1: roda sozinha (UMA_PLACA true), sem fios para a outra placa.
  * Etapa 2: roda com a escrava (src/escrava.c). O mestre decide de quem é a
- * vez e tem o botão do modo noturno.
+ * vez e tem o botão do modo noturno. Gravar: pio run -e mestre -t upload
+ * Etapa 1: roda sozinho, sem fios para a outra placa.
+ *          Gravar: pio run -e placa_unica -t upload
  *
  * A lógica fica nas bibliotecas de lib/, as mesmas nas duas placas; este
  * arquivo só escolhe o papel. Projeto e fiação: src/README.md.
- * Gravar: pio run -e mestre -t upload
  */
 
 #include <zephyr/kernel.h>
@@ -19,12 +19,15 @@
 #include "semaforo_veiculo.h"
 
 /*
- * true:  etapa 1, a placa roda sozinha. Os carros usam o LED RGB da placa e
- *        os pedestres, os LEDs do D6 e do D7.
- * false: etapa 2, com a escrava. Com true, a escrava nunca recebe a vez e
- *        fica com os carros no vermelho.
+ * Vem do platformio.ini, e não deve ser editado aqui:
+ *   1 no ambiente placa_unica: etapa 1, a placa roda sozinha;
+ *   0 no ambiente mestre: etapa 2, com a escrava.
+ * Uma placa gravada como placa_unica e ligada à escrava nunca dá a vez, e a
+ * escrava fica com os carros no vermelho.
  */
-#define UMA_PLACA true
+#ifndef UMA_PLACA
+#define UMA_PLACA 0
+#endif
 
 int main(void)
 {

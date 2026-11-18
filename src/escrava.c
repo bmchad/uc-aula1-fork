@@ -1,9 +1,9 @@
 /*
  * Placa ESCRAVA: semáforo de carros e pedestres.
  *
- * Só abre os próprios carros quando o mestre (src/mestre.c com UMA_PLACA
- * false) dá a vez, e entra no modo noturno pelo fio NOTURNO. Sem o mestre,
- * fica com os carros no vermelho: falha segura.
+ * Só abre os próprios carros quando o mestre (src/mestre.c, gravado com o
+ * ambiente mestre) dá a vez, e entra no modo noturno pelo fio NOTURNO. Sem o
+ * mestre, fica com os carros no vermelho: falha segura.
  *
  * A lógica da escrava (esperar a vez, conferir de novo antes de abrir,
  * avisar quando fechou) fica em lib/semaforo_veiculo, a mesma biblioteca do

@@ -62,7 +62,8 @@ Documento de projeto, escrito antes do código. É a referência para a fiação
 | 4 | D2 (PTD4) do **mestre** | D3 (PTA12) da **escrava** | NOTURNO | 1 = modo noturno |
 
 - **Proteção:** um resistor de **1 kΩ em série** em cada fio de sinal (fios 2, 3 e 4).
-- **Entradas com pull-down:** todas as entradas de sinal usam pull-down interno. Fio solto lê 0, e 0 nunca libera nenhuma rua (seção 6).
+- **Sinais ativos em nível baixo:** o "1" da tabela é o fio em **0 V**, e o "0" é o fio em 3,3 V. Cada entrada tem pull-up interno, então fio solto lê 3,3 V, que é 0 lógico, e 0 nunca libera nenhuma rua (seção 6).
+- **Por que não pull-down:** a primeira versão usava sinais ativos em nível alto com pull-down, e no teste o mestre sem escrava abriu como se ela estivesse parada. O diagnóstico mostrou que a KL25Z não tem pull-down interno nesses pinos: pedindo pull-down no PTD2, o registrador PCR continua `0x107`, com o bit PS fixo em 1 (pull-up). Fio solto lia 1, e com o fio PARADO solto as duas ruas podiam abrir juntas.
 - **Fios 2 e 3:** são a mesma ligação nos dois sentidos (D12 de uma placa no D11 da outra). Só o fio 4 tem direção fixa. Se o papel das placas for trocado, é preciso inverter só esse fio.
 
 ### 4.3 Pinos que não devem ser usados
@@ -77,7 +78,7 @@ As entradas que precisam de interrupção ficam nas portas A e D (D9, D10, D11 e
 
 ### 4.4 Etapa 1: uma placa só
 
-Na etapa 1 o mestre roda sozinho, com `#define UMA_PLACA true` em `src/mestre.c`, gravado com `pio run -e mestre -t upload`. Os fios entre placas (seção 4.2) não são usados, e os pinos deles ficam desligados. As cinco threads e os dois mutexes são os mesmos da etapa 2. Só o vermelho dos carros muda: sem a outra placa para esperar, ele dura 4 s fixos.
+Na etapa 1 o mestre roda sozinho, gravado com `pio run -e placa_unica -t upload`. Esse ambiente compila o `src/mestre.c` com `UMA_PLACA=1`. Os fios entre placas (seção 4.2) não são usados, e os pinos deles ficam desligados. As cinco threads e os dois mutexes são os mesmos da etapa 2. Só o vermelho dos carros muda: sem a outra placa para esperar, ele dura 4 s fixos.
 
 | O que | Ligação | Obrigatório? |
 |---|---|---|
@@ -101,7 +102,7 @@ Na etapa 1 o mestre roda sozinho, com `#define UMA_PLACA true` em `src/mestre.c`
 
 - **Travessia:** com o verde dos carros aceso há mais de 1 s, encostar o D10 no GND encerra o verde na hora (`travessia pedida: verde encurtado`). Os carros passam pelo amarelo e o LED do D7 acende.
 - **Modo noturno:** um toque do D9 no GND pede o modo (`botao noturno: pedido NOTURNO`). A placa termina o ciclo até o fim do vermelho, o que leva até 8 s. Depois o LED RGB pisca o amarelo, 1 s aceso e 1 s apagado. O LED do D7 fica apagado, e o vermelho dos pedestres pisca no D6. Outro toque sai do modo: os carros vão para o vermelho e os pedestres, para o verde.
-- **Para a etapa 2:** `#define UMA_PLACA false` e a fiação das seções 4.1 e 4.2.
+- **Para a etapa 2:** grave o mestre com `pio run -e mestre -t upload` e a escrava com `pio run -e escrava -t upload`, e monte a fiação das seções 4.1 e 4.2.
 
 ## 5. Lógica
 
@@ -170,10 +171,10 @@ Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o ve
 | `lib/modo_noturno` | Separa o **pedido** (botão no mestre, fio NOTURNO na escrava) do **modo efetivo**, que só muda no ponto seguro | `modo_noturno_iniciar`, `modo_noturno_pedido`, `modo_noturno_aplicar`, `modo_noturno_ativo` |
 | `lib/semaforo_pedestres` | Threads do vermelho e do verde dos pedestres, com `mutex_pedestres` | `semaforo_pedestres_iniciar`, `semaforo_pedestres_liberar`, `semaforo_pedestres_encerrar` |
 | `lib/semaforo_veiculo` | Threads do verde, do amarelo e do vermelho dos carros, com `mutex_carros`; handshake e botão de travessia | `semaforo_veiculo_iniciar` |
-| `src/mestre.c` | Inicia as quatro bibliotecas, nesta ordem, como mestre. `UMA_PLACA` escolhe a etapa 1 (placa única, seção 4.4) ou a etapa 2 (duas placas). | — |
+| `src/mestre.c` | Inicia as quatro bibliotecas, nesta ordem, como mestre. O ambiente `mestre` é a etapa 2; o ambiente `placa_unica` define `UMA_PLACA=1` para a etapa 1 (seção 4.4). | — |
 | `src/escrava.c` | Inicia as quatro bibliotecas como escrava. A lógica da escrava fica em `lib/semaforo_veiculo`. | — |
 
-- **Gravação:** há um ambiente do PlatformIO por placa, e cada um compila só o seu arquivo: `pio run -e mestre -t upload` e `pio run -e escrava -t upload`. Sem `-e`, só o mestre é gravado (`default_envs`). O upload não escolhe a placa, então, na hora de gravar, deixe só uma placa no USB do PC. Os fios entre as placas (seção 4.2) podem ficar ligados.
+- **Gravação:** há um ambiente do PlatformIO por placa, e cada um compila só o seu arquivo: `pio run -e mestre -t upload` e `pio run -e escrava -t upload`. Para a etapa 1, `pio run -e placa_unica -t upload`. Sem `-e`, só o mestre é gravado (`default_envs`). O upload não escolhe a placa, então, na hora de gravar, deixe só uma placa no USB do PC. Os fios entre as placas (seção 4.2) podem ficar ligados.
 
 - **Pinos:** estão todos em `zephyr/app.overlay`. A porta C, dos LEDs de pedestres, é habilitada lá.
 - **Serial (115200 bps):** cada troca de luz sai como `tempo ms | carros VERDE` ou `tempo ms | pedestres VERMELHO`. Com a serial das duas placas gravada, dá para conferir que as ruas nunca abriram juntas.
@@ -188,7 +189,7 @@ Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o ve
 | Uma placa reseta no meio do ciclo | Ela volta fechada. Pelas regras do handshake, a outra fecha ao fim da sua fase e espera. |
 | `mestre` gravado nas duas placas | Cada uma lê o VEZ da outra, que é 0, como PARADO = 0. **Nenhuma abre.** |
 | `escrava` gravada nas duas placas | Se as duas ligarem juntas, cada uma vê o PARADO da outra sempre em 1, nunca vê VEZ em 0, e **nenhuma abre**. Se uma ligar bem depois da outra, elas podem se revezar, porque cada uma só abre quando a outra acabou de fechar. **Em nenhum caso as duas abrem juntas.** |
-| Mestre com `UMA_PLACA true` ligado à escrava | O mestre não configura os pinos do enlace, e o D11 da escrava lê 0 pelo pull-down. **A escrava nunca abre**, e o mestre roda o próprio ciclo. A escrava não avisa nada na serial: se a escrava nunca abrir, confira o `UMA_PLACA` primeiro. |
+| Mestre gravado como `placa_unica` e ligado à escrava | Ele não configura os pinos do enlace, e o D11 da escrava lê 0 lógico pelo pull-up. **A escrava nunca abre**, e o mestre roda o próprio ciclo. A escrava não avisa nada na serial: se a escrava nunca abrir, confira primeiro se o mestre foi gravado com o ambiente `mestre`. |
 | Fio GND solto | Os níveis ficam indefinidos. Por isso o fio de GND é obrigatório e deve ser o primeiro a ser ligado. |
 
 Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha piscando o vermelho dos carros.
@@ -196,9 +197,9 @@ Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha pisca
 ## 7. Pontos de teste que esta arquitetura cria (modelo V)
 
 - **Unitário (uma placa):**
-  - **Etapa 1 (placa única):** `UMA_PLACA true` e a fiação da seção 4.4. Testa as cinco threads, os dois mutexes e a sincronia entre carros e pedestres da mesma placa, sem o handshake.
+  - **Etapa 1 (placa única):** ambiente `placa_unica` e a fiação da seção 4.4. Testa as cinco threads, os dois mutexes e a sincronia entre carros e pedestres da mesma placa, sem o handshake.
   - **Escrava sem mestre:** a `escrava` gravada numa placa sozinha. Os carros devem ficar no vermelho para sempre, com os pedestres no verde.
-  - **Mestre sem escrava:** `mestre` com `UMA_PLACA false` e o D11 ligado ao 3,3 V por um resistor de 1 kΩ. Isso simula uma escrava sempre parada e testa o cancelamento da vez: o vermelho dura os 3 s do prazo de resposta, com o aviso "escrava nao pegou a vez".
+  - **Mestre sem escrava:** ambiente `mestre` e o D11 ligado ao 3,3 V por um resistor de 1 kΩ. Isso simula uma escrava sempre parada e testa o cancelamento da vez: o vermelho dura os 3 s do prazo de resposta, com o aviso "escrava nao pegou a vez".
   - Tempos de cada luz.
   - Nunca duas luzes do mesmo semáforo acesas, contando o amarelo como uma luz só.
   - Debounce dos botões.

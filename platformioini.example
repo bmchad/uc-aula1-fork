@@ -31,15 +31,19 @@ monitor_speed = 115200
 ; ARM derruba o Cortex-M0+ com HardFault no boot.
 ; O device_guard_fix.py troca o g++ pelo gcc: o Device Guard (Smart App
 ; Control) do Windows pode bloquear o arm-none-eabi-g++.exe.
+; O zephyr_overlay_fix.py faz o build refazer o devicetree quando só o
+; zephyr/app.overlay muda; sem ele, o firmware sai com os pinos antigos.
 upload_protocol = custom
 extra_scripts =
+    pre:zephyr_overlay_fix.py
     post:mcuxpresso_tools.py
     post:zephyr_link_fix.py
     post:device_guard_fix.py
 
 ; Um ambiente por placa, cada um compila só o seu arquivo de src/:
-;   pio run -e mestre -t upload    mestre (ou placa única na etapa 1)
-;   pio run -e escrava -t upload   escrava
+;   pio run -e mestre -t upload        mestre (etapa 2)
+;   pio run -e escrava -t upload       escrava (etapa 2)
+;   pio run -e placa_unica -t upload   mestre rodando sozinho (etapa 1)
 ; O upload não escolhe a placa: na hora de gravar, deixe só uma placa no USB do
 ; PC. Os fios entre as placas (src/README.md, seção 4.2) podem ficar ligados.
 [env:mestre]
@@ -47,3 +51,7 @@ build_src_filter = +<*> -<escrava.c>
 
 [env:escrava]
 build_src_filter = +<*> -<mestre.c>
+
+[env:placa_unica]
+build_src_filter = +<*> -<escrava.c>
+build_flags = -DUMA_PLACA=1

@@ -3,6 +3,12 @@
  *
  * As entradas que precisam de interrupção ficam nas portas A e D: na KL25Z só
  * essas portas geram interrupção por pino.
+ *
+ * Sinais entre placas (VEZ, PARADO e NOTURNO) são ATIVOS EM NÍVEL BAIXO, com
+ * pull-up na entrada: fio solto lê 3,3 V, que é 0 lógico, o estado seguro
+ * (sem vez, escrava não parada, modo normal). Não dá para usar pull-down: a
+ * KL25Z não tem pull-down interno nesses pinos. Medido no PTD2: pedindo
+ * pull-down, o PCR continua 0x107, com o bit PS fixo em 1 (pull-up).
  */
 
 #include <zephyr/dt-bindings/gpio/gpio.h>
@@ -13,7 +19,10 @@
 };
 
 / {
-	/* Saídas: LEDs de pedestres (acendem em nível alto) e sinais para a outra placa */
+	/*
+	 * Saídas: LEDs de pedestres (acendem em nível alto) e sinais para a outra
+	 * placa (ativos em nível baixo)
+	 */
 	saidas_semaforo {
 		compatible = "gpio-leds";
 
@@ -28,19 +37,19 @@
 		};
 
 		saida_enlace: saida_enlace {
-			gpios = <&gpiod 3 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpiod 3 GPIO_ACTIVE_LOW>;
 			label = "VEZ (mestre) ou PARADO (escrava) (PTD3, D12)";
 		};
 
 		saida_noturno: saida_noturno {
-			gpios = <&gpiod 4 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpiod 4 GPIO_ACTIVE_LOW>;
 			label = "NOTURNO, so o mestre usa (PTD4, D2)";
 		};
 	};
 
 	/*
-	 * Entradas: botões são fios no GND (pull-up, ativos em 0); os
-	 * sinais da outra placa têm pull-down, para fio solto ler 0.
+	 * Entradas: todas com pull-up e ativas em nível baixo. Os botões são fios
+	 * encostados no GND; os sinais vêm da outra placa.
 	 */
 	entradas_semaforo {
 		compatible = "gpio-keys";
@@ -56,12 +65,12 @@
 		};
 
 		entrada_enlace: entrada_enlace {
-			gpios = <&gpiod 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
+			gpios = <&gpiod 2 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 			label = "PARADO (no mestre) ou VEZ (na escrava) (PTD2, D11)";
 		};
 
 		entrada_noturno: entrada_noturno {
-			gpios = <&gpioa 12 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>;
+			gpios = <&gpioa 12 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 			label = "NOTURNO, so a escrava usa (PTA12, D3)";
 		};
 	};
