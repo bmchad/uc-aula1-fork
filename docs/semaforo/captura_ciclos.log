@@ -1,0 +1,41 @@
+3.281	20029 ms | pedestres VERMELHO
+3.297	20032 ms | carros VERDE
+6.297	23034 ms | carros AMARELO
+7.297	24037 ms | carros VERMELHO
+7.297	24039 ms | pedestres VERDE
+11.281	28039 ms | pedestres VERMELHO
+11.297	28042 ms | carros VERDE
+14.297	31044 ms | carros AMARELO
+15.297	32046 ms | carros VERMELHO
+15.297	32049 ms | pedestres VERDE
+19.312	36049 ms | pedestres VERMELHO
+19.312	36052 ms | carros VERDE
+22.312	39054 ms | carros AMARELO
+23.312	40056 ms | carros VERMELHO
+23.312	40059 ms | pedestres VERDE
+25.109	41857 ms | botao noturno: pedido NOTURNO
+25.453	42202 ms | botao noturno: pedido NORMAL
+25.593	42335 ms | botao noturno: pedido NOTURNO
+27.312	44059 ms | pedestres VERMELHO
+27.328	44062 ms | modo NOTURNO
+27.328	44064 ms | carros AMARELO PISCANDO
+27.390	44136 ms | botao noturno: pedido NORMAL
+28.312	45067 ms | modo NORMAL
+28.328	45069 ms | carros VERMELHO
+28.328	45071 ms | pedestres VERDE
+30.047	46795 ms | botao noturno: pedido NOTURNO
+30.734	47485 ms | botao noturno: pedido NORMAL
+31.047	47794 ms | botao noturno: pedido NOTURNO
+31.328	48061 ms | botao noturno: pedido NORMAL
+31.625	48372 ms | botao noturno: pedido NOTURNO
+31.968	48705 ms | botao noturno: pedido NORMAL
+32.328	49072 ms | pedestres VERMELHO
+32.328	49074 ms | carros VERDE
+35.328	52076 ms | carros AMARELO
+36.343	53079 ms | carros VERMELHO
+36.343	53081 ms | pedestres VERDE
+40.328	57081 ms | pedestres VERMELHO
+40.343	57084 ms | carros VERDE
+43.343	60086 ms | carros AMARELO
+44.343	61089 ms | carros VERMELHO
+44.343	61091 ms | pedestres VERDE

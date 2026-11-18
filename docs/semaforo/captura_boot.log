@@ -1,0 +1,5 @@
+21.047	*** Booting Zephyr OS build zephyr-v40200 ***
+21.047	Semaforo iniciado como PLACA UNICA (etapa 1)
+21.047	8 ms | carros VERMELHO
+21.047	10 ms | pedestres VERMELHO
+21.063	12 ms | pedestres VERDE
