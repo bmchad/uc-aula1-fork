@@ -21,7 +21,7 @@ Documento de projeto, escrito antes do código. É a referência para a fiação
 | 3 | "PTB18 mandando tensão" como sinal de "vermelho aceso" | O LED RGB acende em **nível baixo**: PTB18 em 3,3 V significa vermelho **apagado**. A regra ao pé da letra ficaria invertida. | Os sinais entre placas são definidos pelo **estado do semáforo** ("carros parados = 1"), não pela tensão do pino do LED. |
 | 4 | Regra por pino com o amarelo | O amarelo é o PTB18 e o PTB19 acesos juntos. Durante o amarelo de uma placa, a outra não poderia ter nem vermelho nem verde, e teria de **ficar apagada**. | A regra passa a valer para o **estado** (aberta ou fechada), não para cada pino. |
 | 5 | "Nunca vermelho nas duas ao mesmo tempo" | A segurança só exige que as duas ruas **nunca fiquem abertas** (verde ou amarelo) ao mesmo tempo. Na troca, uma rua precisa fechar antes de a outra abrir, então há um instante com as duas no vermelho, e **esse é o comportamento seguro**. Proibir isso obrigaria as duas placas a trocarem no mesmo instante exato, o que placas com relógios separados não garantem: qualquer atraso violaria uma das regras. | A única regra entre placas é: **nunca as duas abertas**. |
-| 6 | Cada placa decidir sozinha, olhando a outra | É uma **race condition entre placas**: cada uma lê "a outra está fechada" e abre; se as duas lerem no mesmo instante, as duas abrem. É o erro da Aula 4, só que agora `k_mutex` e `k_sem` não ajudam, porque não atravessam placas. Além disso, os relógios derivam, e os ciclos se desalinham com o tempo. | Uma placa é **mestre** e decide de quem é a vez; a outra é **escrava** e segue. O código é o mesmo nas duas, e um **jumper** define o papel. A escrava confirma que fechou antes de o mestre abrir. |
+| 6 | Cada placa decidir sozinha, olhando a outra | É uma **race condition entre placas**: cada uma lê "a outra está fechada" e abre; se as duas lerem no mesmo instante, as duas abrem. É o erro da Aula 4, só que agora `k_mutex` e `k_sem` não ajudam, porque não atravessam placas. Além disso, os relógios derivam, e os ciclos se desalinham com o tempo. | Uma placa é **mestre** e decide de quem é a vez; a outra é **escrava** e segue. As bibliotecas são as mesmas nas duas, e o papel vem do programa gravado: `mestre.c` ou `escrava.c`. A escrava confirma que fechou antes de o mestre abrir. |
 | 7 | Um botão de modo noturno em cada placa | As placas poderiam discordar: uma piscando o amarelo e a outra com o verde aceso. | **Só o mestre** tem o botão do modo noturno e repassa o modo à escrava por um fio. |
 
 ## 3. Arquitetura
@@ -32,7 +32,7 @@ Documento de projeto, escrito antes do código. É a referência para a fiação
   - Uma cadeia de `k_sem` para a ordem entre as luzes.
   - As interrupções só fazem `k_sem_give`, porque não podem usar mutex.
 - **Entre as placas:** um handshake de dois fios. O mestre dá a vez (sinal **VEZ**), e a escrava confirma quando fechou (sinal **PARADO**). Nenhuma placa abre sem a confirmação da outra.
-- **Mesmo programa nas duas placas:** a diferença de papel vem do jumper no pino D8.
+- **Mesmas bibliotecas nas duas placas:** o papel vem do arquivo gravado, `src/mestre.c` ou `src/escrava.c` (seção 5.5).
 
 ## 4. Conexões
 
@@ -47,7 +47,7 @@ Documento de projeto, escrito antes do código. É a referência para a fiação
 | Pedestres: verde | PTC9 | D7 | D7 → resistor 220 Ω → perna longa do LED verde; perna curta → GND |
 | Botão de travessia | PTD0 | D10 | Encostar o fio do D10 no GND (pull-up interno) |
 | Botão do modo noturno | PTD5 | D9 | **Só no mestre.** Encostar o fio do D9 no GND (pull-up interno). Já configurado em `zephyr/app.overlay` e `lib/modo_noturno/`. |
-| Papel da placa | PTA13 | D8 | **Ligado ao GND = mestre.** Solto = escrava (pull-up interno). Não é usado na etapa 1 (seção 4.4). |
+| Papel da placa | — | — | Não usa pino: vem do programa gravado, `mestre` ou `escrava` (seção 5.5). |
 
 - **Polaridade:** os LEDs avulsos acendem em **nível alto** (pino → resistor → LED → GND). O RGB da placa acende em **nível baixo**. O código usa a polaridade definida no devicetree para cada LED, então nos dois casos "1" quer dizer aceso.
 - **Resistor dos LEDs: 220 Ω,** o que está montado. Pela conta, a corrente fica em até ~6,4 mA para um LED vermelho (~1,9 V) e ~5,5 mA para um verde comum (~2,1 V). O PTC8 e o PTC9 são pinos de corrente normal: o datasheet da KL25Z garante a tensão de saída até 5 mA, e o limite absoluto é de 25 mA por pino. Acima de 5 mA a tensão no pino cai alguns décimos de volt, o que também segura a corrente. **Não use menos de 220 Ω.** Um verde do tipo de 3 V acende mais fraco, mas acende.
@@ -77,7 +77,7 @@ As entradas que precisam de interrupção ficam nas portas A e D (D9, D10, D11 e
 
 ### 4.4 Etapa 1: uma placa só
 
-Na etapa 1 a placa roda sozinha, com `#define UMA_PLACA true` em `src/main.c`. O jumper do D8 e os fios entre placas (seção 4.2) não são usados, e os pinos deles ficam desligados. As cinco threads e os dois mutexes são os mesmos da etapa 2. Só o vermelho dos carros muda: sem a outra placa para esperar, ele dura 4 s fixos.
+Na etapa 1 o mestre roda sozinho, com `#define UMA_PLACA true` em `src/mestre.c`, gravado com `pio run -e mestre -t upload`. Os fios entre placas (seção 4.2) não são usados, e os pinos deles ficam desligados. As cinco threads e os dois mutexes são os mesmos da etapa 2. Só o vermelho dos carros muda: sem a outra placa para esperar, ele dura 4 s fixos.
 
 | O que | Ligação | Obrigatório? |
 |---|---|---|
@@ -166,11 +166,14 @@ Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o ve
 
 | Biblioteca | Responsabilidade | Funções públicas |
 |---|---|---|
-| `lib/enlace` | Pinos entre as placas e papel pelo jumper. A interrupção da entrada só acorda quem espera, e quem espera sempre confere o nível de novo. | `enlace_iniciar`, `enlace_sou_mestre`, `enlace_uma_placa`, `enlace_publicar`, `enlace_ler`, `enlace_esperar`, `enlace_aguardar_mudanca`, `enlace_publicar_noturno`, `enlace_ler_noturno` |
+| `lib/enlace` | Pinos entre as placas. O papel é passado pelo `mestre.c` ou pelo `escrava.c`. A interrupção da entrada só acorda quem espera, e quem espera sempre confere o nível de novo. | `enlace_iniciar`, `enlace_sou_mestre`, `enlace_uma_placa`, `enlace_publicar`, `enlace_ler`, `enlace_esperar`, `enlace_aguardar_mudanca`, `enlace_publicar_noturno`, `enlace_ler_noturno` |
 | `lib/modo_noturno` | Separa o **pedido** (botão no mestre, fio NOTURNO na escrava) do **modo efetivo**, que só muda no ponto seguro | `modo_noturno_iniciar`, `modo_noturno_pedido`, `modo_noturno_aplicar`, `modo_noturno_ativo` |
 | `lib/semaforo_pedestres` | Threads do vermelho e do verde dos pedestres, com `mutex_pedestres` | `semaforo_pedestres_iniciar`, `semaforo_pedestres_liberar`, `semaforo_pedestres_encerrar` |
 | `lib/semaforo_veiculo` | Threads do verde, do amarelo e do vermelho dos carros, com `mutex_carros`; handshake e botão de travessia | `semaforo_veiculo_iniciar` |
-| `src/main.c` | Inicia as quatro, nesta ordem. `UMA_PLACA` escolhe a etapa 1 (placa única, seção 4.4) ou a etapa 2 (duas placas). | — |
+| `src/mestre.c` | Inicia as quatro bibliotecas, nesta ordem, como mestre. `UMA_PLACA` escolhe a etapa 1 (placa única, seção 4.4) ou a etapa 2 (duas placas). | — |
+| `src/escrava.c` | Inicia as quatro bibliotecas como escrava. A lógica da escrava fica em `lib/semaforo_veiculo`. | — |
+
+- **Gravação:** há um ambiente do PlatformIO por placa, e cada um compila só o seu arquivo: `pio run -e mestre -t upload` e `pio run -e escrava -t upload`. Sem `-e`, só o mestre é gravado (`default_envs`). O upload não escolhe a placa, então, na hora de gravar, deixe só uma placa no USB do PC. Os fios entre as placas (seção 4.2) podem ficar ligados.
 
 - **Pinos:** estão todos em `zephyr/app.overlay`. A porta C, dos LEDs de pedestres, é habilitada lá.
 - **Serial (115200 bps):** cada troca de luz sai como `tempo ms | carros VERDE` ou `tempo ms | pedestres VERMELHO`. Com a serial das duas placas gravada, dá para conferir que as ruas nunca abriram juntas.
@@ -183,8 +186,9 @@ Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o ve
 | Fio PARADO solto | O mestre lê 0 e nunca abre. **As duas ficam no vermelho.** |
 | Fio NOTURNO solto | A escrava não entra no modo noturno. O mestre continua respeitando o handshake, então nunca há as duas abertas. |
 | Uma placa reseta no meio do ciclo | Ela volta fechada. Pelas regras do handshake, a outra fecha ao fim da sua fase e espera. |
-| Duas placas com jumper (dois mestres) | Cada uma lê o VEZ da outra, que é 0, como PARADO = 0. **Nenhuma abre.** |
-| Nenhuma placa com jumper (duas escravas) | Se as duas ligarem juntas, cada uma vê o PARADO da outra sempre em 1, nunca vê VEZ em 0, e **nenhuma abre**. Se uma ligar bem depois da outra, elas podem se revezar, porque cada uma só abre quando a outra acabou de fechar. **Em nenhum caso as duas abrem juntas.** |
+| `mestre` gravado nas duas placas | Cada uma lê o VEZ da outra, que é 0, como PARADO = 0. **Nenhuma abre.** |
+| `escrava` gravada nas duas placas | Se as duas ligarem juntas, cada uma vê o PARADO da outra sempre em 1, nunca vê VEZ em 0, e **nenhuma abre**. Se uma ligar bem depois da outra, elas podem se revezar, porque cada uma só abre quando a outra acabou de fechar. **Em nenhum caso as duas abrem juntas.** |
+| Mestre com `UMA_PLACA true` ligado à escrava | O mestre não configura os pinos do enlace, e o D11 da escrava lê 0 pelo pull-down. **A escrava nunca abre**, e o mestre roda o próprio ciclo. A escrava não avisa nada na serial: se a escrava nunca abrir, confira o `UMA_PLACA` primeiro. |
 | Fio GND solto | Os níveis ficam indefinidos. Por isso o fio de GND é obrigatório e deve ser o primeiro a ser ligado. |
 
 Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha piscando o vermelho dos carros.
@@ -193,14 +197,15 @@ Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha pisca
 
 - **Unitário (uma placa):**
   - **Etapa 1 (placa única):** `UMA_PLACA true` e a fiação da seção 4.4. Testa as cinco threads, os dois mutexes e a sincronia entre carros e pedestres da mesma placa, sem o handshake.
-  - **Mestre sem escrava:** `UMA_PLACA false`, jumper no D8 e o D11 ligado ao 3,3 V por um resistor de 1 kΩ. Isso simula uma escrava sempre parada e testa o cancelamento da vez: o vermelho dura os 3 s do prazo de resposta, com o aviso "escrava nao pegou a vez".
+  - **Escrava sem mestre:** a `escrava` gravada numa placa sozinha. Os carros devem ficar no vermelho para sempre, com os pedestres no verde.
+  - **Mestre sem escrava:** `mestre` com `UMA_PLACA false` e o D11 ligado ao 3,3 V por um resistor de 1 kΩ. Isso simula uma escrava sempre parada e testa o cancelamento da vez: o vermelho dura os 3 s do prazo de resposta, com o aviso "escrava nao pegou a vez".
   - Tempos de cada luz.
   - Nunca duas luzes do mesmo semáforo acesas, contando o amarelo como uma luz só.
   - Debounce dos botões.
 - **Integração (duas placas):**
   - **Nunca as duas ruas abertas,** registrando a serial das duas placas com o tempo de cada linha.
   - Soltar cada fio no meio do ciclo.
-  - Jumper nas duas placas e em nenhuma.
+  - O mesmo programa nas duas placas: `mestre` nas duas, depois `escrava` nas duas.
   - Resetar uma placa no meio do ciclo.
   - Medir o atraso do handshake.
 - **Sistema:**

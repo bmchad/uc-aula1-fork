@@ -5,7 +5,8 @@
  * cruz com a outra placa. O significado depende do papel:
  *   - mestre: saída = VEZ, entrada = PARADO da escrava;
  *   - escrava: saída = PARADO, entrada = VEZ do mestre.
- * O papel vem do jumper no D8 (ligado ao GND = mestre).
+ * O papel vem do programa gravado: src/mestre.c (que também é a placa única
+ * da etapa 1) ou src/escrava.c.
  * O fio NOTURNO vai do D2 do mestre para o D3 da escrava.
  */
 
@@ -15,14 +16,19 @@
 #include <stdbool.h>
 #include <zephyr/kernel.h>
 
+enum enlace_papel {
+	ENLACE_UNICA,     /* etapa 1: não existe a outra placa */
+	ENLACE_MESTRE,    /* src/mestre.c na etapa 2 */
+	ENLACE_ESCRAVA,   /* src/escrava.c */
+};
+
 /*
- * Lê o papel e configura os pinos no estado seguro: VEZ = 0 ou PARADO = 1.
+ * Configura os pinos no estado seguro: VEZ = 0 (mestre) ou PARADO = 1 (escrava).
  *
- * uma_placa = true (etapa 1): não existe a outra placa. Nenhum pino do enlace
- * é configurado, o jumper não é lido, a placa age como mestre e as funções de
- * publicar não fazem nada.
+ * ENLACE_UNICA: nenhum pino do enlace é configurado, a placa age como mestre
+ * e as funções de publicar não fazem nada.
  */
-int enlace_iniciar(bool uma_placa);
+int enlace_iniciar(enum enlace_papel papel);
 
 bool enlace_sou_mestre(void);
 

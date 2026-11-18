@@ -2,15 +2,19 @@
 ; (cada PC tem seus caminhos): copie este arquivo para platformio.ini antes de
 ; compilar.
 ;
-; Para guardar os pacotes do PlatformIO em outra pasta, acrescente no seu
-; platformio.ini:
-;   [platformio]
+; Para guardar os pacotes do PlatformIO em outra pasta, acrescente na seção
+; [platformio] do seu platformio.ini:
 ;   core_dir = D:/DevTools/.platformio
 ;
 ; Please visit documentation for the other options and examples
 ; https://docs.platformio.org/page/projectconf.html
 
-[env:frdm_kl25z]
+[platformio]
+; Sem -e, grava só o mestre. Sem isso, um upload gravaria os dois programas
+; em sequência na mesma placa.
+default_envs = mestre
+
+[env]
 platform = freescalekinetis
 board = frdm_kl25z
 framework = zephyr
@@ -32,3 +36,14 @@ extra_scripts =
     post:mcuxpresso_tools.py
     post:zephyr_link_fix.py
     post:device_guard_fix.py
+
+; Um ambiente por placa, cada um compila só o seu arquivo de src/:
+;   pio run -e mestre -t upload    mestre (ou placa única na etapa 1)
+;   pio run -e escrava -t upload   escrava
+; O upload não escolhe a placa: na hora de gravar, deixe só uma placa no USB do
+; PC. Os fios entre as placas (src/README.md, seção 4.2) podem ficar ligados.
+[env:mestre]
+build_src_filter = +<*> -<escrava.c>
+
+[env:escrava]
+build_src_filter = +<*> -<mestre.c>

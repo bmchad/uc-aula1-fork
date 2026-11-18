@@ -39,7 +39,7 @@
 	};
 
 	/*
-	 * Entradas: botões e jumper são fios no GND (pull-up, ativos em 0); os
+	 * Entradas: botões são fios no GND (pull-up, ativos em 0); os
 	 * sinais da outra placa têm pull-down, para fio solto ler 0.
 	 */
 	entradas_semaforo {
@@ -53,11 +53,6 @@
 		botao_travessia: botao_travessia {
 			gpios = <&gpiod 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 			label = "Travessia (PTD0, D10)";
-		};
-
-		jumper_mestre: jumper_mestre {
-			gpios = <&gpioa 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-			label = "Jumper no GND = mestre (PTA13, D8)";
 		};
 
 		entrada_enlace: entrada_enlace {

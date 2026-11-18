@@ -10,8 +10,6 @@
 
 #include <zephyr/drivers/gpio.h>
 
-static const struct gpio_dt_spec jumper =
-	GPIO_DT_SPEC_GET(DT_NODELABEL(jumper_mestre), gpios);
 static const struct gpio_dt_spec saida =
 	GPIO_DT_SPEC_GET(DT_NODELABEL(saida_enlace), gpios);
 static const struct gpio_dt_spec entrada =
@@ -34,17 +32,18 @@ static void isr_entrada(const struct device *dev, struct gpio_callback *cb,
 	k_sem_give(&sem_mudanca);
 }
 
-int enlace_iniciar(bool uma_placa)
+int enlace_iniciar(enum enlace_papel papel)
 {
 	const struct gpio_dt_spec *pinos[] = {
-		&jumper, &saida, &entrada, &saida_noturno, &entrada_noturno,
+		&saida, &entrada, &saida_noturno, &entrada_noturno,
 	};
 	int ret;
 
-	if (uma_placa) {
+	mestre = papel != ENLACE_ESCRAVA;
+
+	if (papel == ENLACE_UNICA) {
 		/* Etapa 1: os pinos do enlace ficam como vieram do reset (desligados) */
 		sozinha = true;
-		mestre = true;
 		return 0;
 	}
 
@@ -53,13 +52,6 @@ int enlace_iniciar(bool uma_placa)
 			return -ENODEV;
 		}
 	}
-
-	ret = gpio_pin_configure_dt(&jumper, GPIO_INPUT);
-	if (ret < 0) {
-		return ret;
-	}
-	k_busy_wait(100);   /* deixa o pull-up estabilizar antes de ler */
-	mestre = gpio_pin_get_dt(&jumper) == 1;
 
 	/* Estado inicial seguro: mestre sem dar a vez, escrava parada */
 	ret = gpio_pin_configure_dt(&saida, mestre ? GPIO_OUTPUT_INACTIVE
