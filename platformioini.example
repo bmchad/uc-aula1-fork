@@ -25,7 +25,10 @@ monitor_speed = 115200
 ; (copia o firmware.bin para o drive DAPLINK).
 ; O zephyr_link_fix.py passa -mcpu/-mthumb ao link: sem isso a libgcc em modo
 ; ARM derruba o Cortex-M0+ com HardFault no boot.
+; O device_guard_fix.py troca o g++ pelo gcc: o Device Guard (Smart App
+; Control) do Windows pode bloquear o arm-none-eabi-g++.exe.
 upload_protocol = custom
 extra_scripts =
     post:mcuxpresso_tools.py
     post:zephyr_link_fix.py
+    post:device_guard_fix.py
