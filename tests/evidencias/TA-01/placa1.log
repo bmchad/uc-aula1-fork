@@ -1,0 +1,23 @@
+
+3.566	placa1	*** Booting Zephyr OS build v4.5.0-660-ge08106651fc7 ***
+3.576	placa1	Semaforo iniciado como PLACA UNICA (etapa 1)
+3.576	placa1	9 ms | carros VERMELHO
+3.576	placa1	11 ms | pedestres VERMELHO
+3.576	placa1	13 ms | pedestres VERDE
+7.551	placa1	4011 ms | pedestres VERMELHO
+7.551	placa1	4013 ms | carros VERDE
+10.530	placa1	7016 ms | carros AMARELO
+11.524	placa1	8018 ms | carros VERMELHO
+11.527	placa1	8020 ms | pedestres VERDE
+15.491	placa1	12020 ms | pedestres VERMELHO
+15.493	placa1	12023 ms | carros VERDE
+18.474	placa1	15026 ms | carros AMARELO
+19.461	placa1	16028 ms | carros VERMELHO
+19.463	placa1	16030 ms | pedestres VERDE
+23.553	placa1	20030 ms | pedestres VERMELHO
+23.556	placa1	20033 ms | carros VERDE
+26.594	placa1	23036 ms | carros AMARELO
+27.603	placa1	24038 ms | carros VERMELHO
+27.606	placa1	24040 ms | pedestres VERDE
+31.613	placa1	28040 ms | pedestres VERMELHO
+31.615	placa1	28043 ms | carros VERDE

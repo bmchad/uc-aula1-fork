@@ -105,7 +105,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 
 - **Nível:** unitário.
 - **Requisitos:** RF-01, RF-02.
-- **Pré-condição:** cada placa montada como na seção 1.1 do 03, com `-DPAPEL=placa_unica`, e a captura da serial ligada.
+- **Pré-condição:** cada placa montada como na seção 1.1 do 03-projeto-componentes.md, com `-DPAPEL=placa_unica`, e a captura da serial ligada.
 - **Etapas:**
   1. Ligar a placa e filmar os LEDs durante um ciclo completo (8 s), com a captura da serial ligada.
   2. Repetir com a outra placa.
@@ -114,7 +114,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   - Pedestres: verde e vermelho distinguíveis.
   - Em cada troca, a luz que o vídeo mostra é a que a serial registra.
 - **Evidência:** um vídeo e um log por placa.
-- **Etapa 1:** T8, pendente.
 
 ### TA-02: tempos do ciclo normal
 
@@ -145,7 +144,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 
 - **Resultado esperado (parte B),** nas duas vias: verde e amarelo dos veículos e vermelho dos pedestres como na parte A; vermelho dos veículos e verde dos pedestres de **4,00 a 4,20 s**, por causa do handshake. Nenhuma fase pulada e a ordem não muda.
 - **Evidência:** os logs e a tabela de durações.
-- **Etapa 1:** T2, aprovado na parte A.
 
 ### TA-03: sincronismo e ordem das trocas
 
@@ -158,7 +156,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   3. Na parte B, conferir a ordem entre as vias pelo tempo do PC: o `carros VERMELHO` de uma via antes do `carros VERDE` da outra.
 - **Resultado esperado:** atraso de até 50 ms em todas as trocas da mesma via, e nenhuma troca fora de ordem. Entre as vias, a folga esperada é de pelo menos 50 ms (`GUARDA_MS`), bem acima da variação do USB, então a ordem pelo tempo do PC é confiável.
 - **Evidência:** a tabela de atrasos e a linha do tempo.
-- **Etapa 1:** T3, aprovado com uma placa.
 
 ### TA-04: partida e reinício
 
@@ -173,7 +170,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   - Reinício: a primeira linha `carros` da placa reiniciada é `VERMELHO`, e o sistema volta a se revezar sem nenhum comando. Em nenhum momento as duas vias ficam abertas (RS-04).
 - **Observação:** o RESET da placa não derruba a porta serial, mas tirar o USB derruba. A captura reabre a porta sozinha quando a placa volta.
 - **Evidência:** os logs das duas placas.
-- **Etapa 1:** T1, aprovado com um boot de uma placa.
 
 ### TA-05: botão de travessia
 
@@ -195,7 +191,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 - **Observação (parte B):** um toque numa via encurta o vermelho da outra. Isso é esperado e não reprova o TA-02.
 - **Observação (RF-11):** na serial, toques a menos de 0,2 s um do outro aparecem como um só. Para contar os 5 toques, espaçe-os um pouco mais que isso.
 - **Evidência:** os logs e o relatório da análise.
-- **Etapa 1:** T7, pendente.
 
 ### TA-06: botão do modo noturno
 
@@ -224,7 +219,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   - **RF-15:** em cada via, as trocas do pisca dos veículos e dos pedestres ficam a até 50 ms uma da outra.
   - **RF-18:** os toques aparecem como `botao travessia: toque`, sem nenhuma linha `travessia pedida`, e o primeiro verde depois da saída dura de 2,97 a 3,03 s.
 - **Evidência:** os logs e o relatório da análise.
-- **Etapa 1:** T6, pendente.
 
 ### TA-08: entrada e saída do modo noturno
 
@@ -255,7 +249,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   2. O mestre registra `escrava nao pegou a vez: esperando o ciclo dela` em cada ciclo, e o vermelho dele dura cerca de 8 s: os 3 s do prazo, mais os 5 s da espera, mais a guarda.
   3. Pelo tempo do PC, as vias abrem alternadamente: A, B, A, B. Uma via só abre depois de a outra fechar.
   4. As duas placas entram e saem do pisca no mesmo ciclo, todas as 5 vezes.
-- **Evidência:** os logs de cada etapa.
 
 ### TA-10: ensaio longo de segurança
 
@@ -271,7 +264,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   - as duas vias abertas, comparando pelo tempo do PC (RS-04).
 - **Limite da evidência para o RS-02:** a serial registra quando cada luz acende, mas não quando apaga. Ela mostra a ordem, mas não prova que a luz anterior apagou. O RS-02 é conferido pelo vídeo do TA-01 e pela revisão do mutex no TA-12.
 - **Evidência:** os logs, a linha do tempo das duas vias e a contagem de violações.
-- **Etapa 1:** T3 cobriu 45 s com uma placa, sem o RS-04.
 
 ### TA-11: falhas de fiação e placa desligada
 
@@ -290,7 +282,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 
 - **Resultado esperado:** em todos os casos, nenhuma violação de RS-01 a RS-04 na placa que continua ligada. Ela só para com o vermelho dos veículos aceso fixo ou no pisca, nunca no verde. Parada no vermelho, ela registra um aviso pelo menos a cada 10 s.
 - **Depois do teste:** atualizar a seção 2.5 do [02-arquitetura.md](../docs/02-arquitetura.md) com o comportamento real nos casos de placa desligada.
-- **Evidência:** os logs de cada caso.
 
 ### TA-12: revisão de código
 
@@ -308,7 +299,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   | 5 | Nenhuma rotina de interrupção usa mutex, `printk` ou espera |
 
 - **Resultado esperado:** todos os itens conferidos.
-- **Evidência:** a lista preenchida, com o commit revisado.
 
 ### TA-13: registro na serial e modo de placa única
 
@@ -322,7 +312,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   4. Na parte B de qualquer teste, conferir que cada linha das duas seriais tem o tempo do PC.
 - **Resultado esperado:** todas as etapas conferidas. O RNF-06 também exige que a parte A de TA-01 a TA-08 passe com `placa_unica`.
 - **Evidência:** a saída dos três builds e o log do boot.
-- **Etapa 1:** T0, aprovado (build pelo PlatformIO, antes da troca para o west).
 
 ### TA-14: inspeção do repositório
 
@@ -340,19 +329,19 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 
 | Teste | Nível | Situação | Evidência existente |
 |---|---|---|---|
-| TA-01 | Unitário | Pendente | — |
-| TA-02 | Unitário e integração | Parte A aprovada (T2); parte B pendente | [captura_ciclos.log](../docs/semaforo/captura_ciclos.log) |
-| TA-03 | Integração | Parte A aprovada (T3); parte B pendente | [figura1_linha_do_tempo.png](../docs/semaforo/figura1_linha_do_tempo.png) |
-| TA-04 | Sistema | Um boot de uma placa (T1) | [captura_boot.log](../docs/semaforo/captura_boot.log) |
-| TA-05 | Sistema | Pendente (T7) | — |
-| TA-06 | Unitário | Inconclusivo (T5) | [captura_ciclos.log](../docs/semaforo/captura_ciclos.log) |
-| TA-07 | Sistema | Pendente (T6) | — |
-| TA-08 | Integração | Parte A aprovada (T4); parte B pendente | [captura_ciclos.log](../docs/semaforo/captura_ciclos.log) |
+| TA-01 | Unitário | Aprovado | - |
+| TA-02 | Unitário e integração | Pendente | - |
+| TA-03 | Integração | Pendente | - |
+| TA-04 | Sistema | Pendente | - |
+| TA-05 | Sistema | Pendente | — |
+| TA-06 | Unitário | Pendente | - |
+| TA-07 | Sistema | Pendente | — |
+| TA-08 | Integração | Pendente | - |
 | TA-09 | Integração | Pendente | — |
-| TA-10 | Sistema | Parcial: 45 s com uma placa (T3) | [captura_ciclos.log](../docs/semaforo/captura_ciclos.log) |
+| TA-10 | Sistema | Pendente | - |
 | TA-11 | Sistema | Pendente | — |
 | TA-12 | Unitário | Pendente | — |
-| TA-13 | Unitário | Build aprovado (T0, ainda pelo PlatformIO); refazer com o west | — |
+| TA-13 | Unitário | Pendente | — |
 | TA-14 | Processo | Pendente | — |
 
 Os testes T0 a T8 são os da etapa 1, registrados no [relatório da etapa 1](../docs/enunciado.md#relatório-de-testes-etapa-1-do-semáforo-uma-placa). Eles foram feitos no commit `8ae444e`, antes das mudanças da etapa 2. Antes da entrega, as partes A aprovadas devem ser refeitas no commit final.
