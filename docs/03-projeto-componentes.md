@@ -1,6 +1,6 @@
 ## 1. Hardware de cada placa
 
-As duas placas são FRDM-KL25Z com a mesma fiação. A única diferença é o fio NOTURNO, que sai do mestre e entra na escrava. Os pinos do código estão no [frdm_kl25z.overlay](../frdm_kl25z.overlay), que o Zephyr aplica sozinho porque tem o nome da placa. Este documento é a referência para a montagem.
+As duas placas são FRDM-KL25Z com a mesma fiação; só o botão do modo noturno é exclusivo do mestre. Os pinos do código estão no [frdm_kl25z.overlay](../frdm_kl25z.overlay), que o Zephyr aplica sozinho porque tem o nome da placa. Este documento é a referência para a montagem.
 
 ### 1.1 Pinos
 
@@ -13,15 +13,14 @@ As duas placas são FRDM-KL25Z com a mesma fiação. A única diferença é o fi
 | Pedestres: verde | PTC9 | D7 | `ped_verde` | alto | D7 → resistor de 220 Ω → perna longa do LED verde; perna curta → GND |
 | Botão de travessia | PTD0 | D10 | `botao_travessia` | baixo | Um fio no D10; para apertar, encostar a outra ponta no GND |
 | Botão do modo noturno | PTD5 | D9 | `botao_noturno` | baixo | **Só no mestre.** Um fio no D9, encostado no GND |
-| Saída do enlace (VEZ no mestre, PARADO na escrava) | PTD3 | D12 | `saida_enlace` | baixo | Fio para o D11 da outra placa (seção 1.4) |
-| Entrada do enlace (PARADO no mestre, VEZ na escrava) | PTD2 | D11 | `entrada_enlace` | baixo | Fio do D12 da outra placa |
-| Saída NOTURNO | PTD4 | D2 | `saida_noturno` | baixo | **Só no mestre.** Fio para o D3 da escrava |
-| Entrada NOTURNO | PTA12 | D3 | `entrada_noturno` | baixo | **Só na escrava.** Fio do D2 do mestre |
+| Enlace: UART2 TX | PTD3 (ALT3) | D12 (J2, pino 10) | `uart2` | — | Fio para o D11 da outra placa (seção 1.4) |
+| Enlace: UART2 RX | PTD2 (ALT3) | D11 (J2, pino 8) | `uart2` | — | Fio do D12 da outra placa. Pull-up interno: com o fio solto, fica em repouso. |
 
-- **Polaridade:** o código usa a polaridade do devicetree, então "1" sempre quer dizer aceso, apertado ou sinal ativo, qualquer que seja a tensão no pino.
+- **Polaridade:** o código usa a polaridade do devicetree, então "1" sempre quer dizer aceso ou apertado, qualquer que seja a tensão no pino.
 - **Porta C:** vem desabilitada na placa. O overlay a habilita para os LEDs de pedestres.
-- **Entradas com interrupção:** ficam nas portas A e D (D3, D9, D10 e D11), porque na KL25Z só essas portas geram interrupção por pino.
-- **Pull-up:** todas as entradas usam o pull-up interno. A KL25Z não tem pull-down nesses pinos: pedindo pull-down no PTD2, o registrador PCR continua em `0x107`, com o bit PS fixo em 1.
+- **Entradas com interrupção:** os dois botões ficam na porta D (D9 e D10), porque na KL25Z só as portas A e D geram interrupção por pino.
+- **UART2:** o Zephyr não descreve a UART1 nem a UART2 da KL25Z. O nó da UART2 está no overlay, a partir do manual do chip: base em `0x4006C000`, IRQ 14, relógio do barramento com a porta no bit 12 do `SIM_SCGC4`.
+- **Pull-up:** os botões e o RX da UART2 usam o pull-up interno. A KL25Z não tem pull-down nesses pinos.
 
 ### 1.2 LEDs e resistores
 
@@ -40,17 +39,18 @@ As duas placas são FRDM-KL25Z com a mesma fiação. A única diferença é o fi
 
 ### 1.4 Fios entre as placas
 
-| Fio | De | Para | Sinal |
+| Fio | De | Para | Função |
 |---|---|---|---|
-| 1 | GND | GND | Referência comum |
-| 2 | D12 (PTD3) do mestre | D11 (PTD2) da escrava | VEZ |
-| 3 | D12 (PTD3) da escrava | D11 (PTD2) do mestre | PARADO |
-| 4 | D2 (PTD4) do mestre | D3 (PTA12) da escrava | NOTURNO |
+| 1 | GND (J2, pino 14) | GND (J2, pino 14) | Referência comum |
+| 2 | D12 do mestre (J2, pino 10; UART2 TX) | D11 da escrava (J2, pino 8; UART2 RX) | Quadros do mestre |
+| 3 | D12 da escrava (J2, pino 10; UART2 TX) | D11 do mestre (J2, pino 8; UART2 RX) | Quadros da escrava |
 
-- **Resistor de 1 kΩ em série** em cada fio de sinal (fios 2, 3 e 4). Ele limita a corrente se os dois lados ficarem como saída por engano.
-- **O GND é o primeiro fio a ligar.** Sem ele, os níveis dos outros fios não têm significado.
-- **Fios 2 e 3** são a mesma ligação nos dois sentidos: D12 de uma placa no D11 da outra. Só o fio 4 tem direção fixa. Se os papéis das placas forem trocados, é preciso inverter só esse fio.
-- O significado de cada sinal e o protocolo estão na seção 2 do [02-arquitetura.md](02-arquitetura.md).
+- **Os sinais Arduino ficam nos pinos pares do J2,** e os nomes D11 e D12 geralmente não estão impressos na placa. Não ligue nada na fileira de pinos ímpares.
+- **Resistor de 1 kΩ em série** em cada fio de dados (fios 2 e 3). Ele limita a corrente se dois TX forem ligados juntos por engano e a corrente que vai para uma placa desligada. Qualquer valor de 470 Ω a 2,2 kΩ serve.
+- **O GND é o primeiro fio a ligar.** Sem ele, a UART não tem referência.
+- **Fios 2 e 3** são a mesma ligação nos dois sentidos: TX (D12) de uma placa no RX (D11) da outra. Trocar o papel das placas não muda a fiação.
+- **Teste da fiação de cada placa, antes de ligar a outra:** ligue o D12 no D11 da própria placa, pelo resistor. Com o firmware de mestre ou de escrava, a serial deve mostrar `enlace: quadro com o mesmo papel desta placa`. Isso confirma o TX, o RX e os pinos certos.
+- O formato do quadro e o protocolo estão na seção 2 do [02-arquitetura.md](02-arquitetura.md).
 
 ### 1.5 Montagem da etapa 1 (placa única)
 
@@ -71,8 +71,8 @@ As duas placas são FRDM-KL25Z com a mesma fiação. A única diferença é o fi
 | Arquivo | Conteúdo |
 |---|---|
 | [CMakeLists.txt](../CMakeLists.txt) | Escolhe o papel pela variável `PAPEL` (`mestre`, `escrava` ou `placa_unica`; padrão `mestre`), compila as quatro bibliotecas de `lib/` e, na placa única, define `UMA_PLACA=1`. Um valor inválido para a compilação com erro. |
-| [prj.conf](../prj.conf) | Liga o GPIO e o console na UART0 (`CONFIG_GPIO`, `CONFIG_SERIAL`, `CONFIG_CONSOLE`, `CONFIG_UART_CONSOLE`). |
-| [frdm_kl25z.overlay](../frdm_kl25z.overlay) | Pinos da seção 1.1 e habilitação da porta C. |
+| [prj.conf](../prj.conf) | Liga o GPIO, o console na UART0 (`CONFIG_GPIO`, `CONFIG_SERIAL`, `CONFIG_CONSOLE`, `CONFIG_UART_CONSOLE`) e a UART por interrupção, para o enlace (`CONFIG_UART_INTERRUPT_DRIVEN`). |
+| [frdm_kl25z.overlay](../frdm_kl25z.overlay) | Pinos da seção 1.1, habilitação da porta C, nó da UART2 com os pinos PTD2 e PTD3, e o alias `enlace-uart`. |
 
 Compilar e gravar, com uma pasta de build por papel:
 
@@ -93,27 +93,61 @@ Convenções comuns aos quatro módulos:
 
 ### 3.1 `lib/enlace`
 
-**Responsabilidade:** ler e escrever os fios entre as placas. Não sabe nada de semáforo, só de níveis lógicos.
+**Responsabilidade:** trocar o estado com a outra placa pela UART2. Não sabe nada de semáforo, só de três sinais lógicos: SINAL (VEZ ou PARADO, conforme o papel), NOTURNO e o papel de quem mandou.
+
+**Constantes:**
+
+| Constante | Valor | Uso |
+|---|---|---|
+| `BYTE_INICIO` | `0xA5` | Primeiro byte de todo quadro |
+| `PERIODO_MS` | 50 ms | Intervalo de reenvio do estado, mesmo sem mudança |
+| `PRAZO_MS` | 200 ms | Sem quadro válido por esse tempo: enlace perdido |
+| `TAMANHO_FILA` | 64 bytes | Bytes recebidos à espera da `t_enlace_rx` |
+| `PRIORIDADE_ENLACE` | 5 | A mesma das luzes, para as linhas da serial não se misturarem |
+
+**Quadro** (4 bytes, 115200 bps, 8 bits, sem paridade, 1 bit de parada):
+
+| Byte | Conteúdo |
+|---|---|
+| 0 | `0xA5` |
+| 1 | Bit 0: SINAL (VEZ no mestre, PARADO na escrava). Bit 1: NOTURNO (só o mestre). Bit 2: MESTRE (1 se quem mandou é o mestre). Bits 3 a 7: sempre 0. |
+| 2 | Contador, que aumenta a cada quadro (só para depuração) |
+| 3 | `~(byte0 + byte1 + byte2)`, em 8 bits |
 
 **Dados internos:**
 
 | Nome | Tipo | Uso |
 |---|---|---|
-| `mestre` | `bool` | Papel da placa. A placa única age como mestre. |
-| `sozinha` | `bool` | Placa única: nenhum pino é configurado, e as funções de publicar não fazem nada. |
-| `sem_mudanca` | `k_sem`, limite 1 | Dado pela interrupção da entrada, nas duas bordas |
+| `mestre`, `sozinha` | `bool` | Papel da placa. A placa única age como mestre e não usa a UART. |
+| `local` | `atomic_t` | Bits que esta placa manda |
+| `remoto` | `atomic_t` | Bits do último quadro válido da outra placa; 0 sem enlace |
+| `conectado` | `atomic_t` | 1 enquanto chegam quadros válidos |
+| `fila_rx` | `k_msgq` de 64 bytes | Interrupção da UART2 → `t_enlace_rx` |
+| `sem_mudanca` | `k_sem`, limite 1 | `t_enlace_rx` → quem espera a outra placa |
+| `sem_envio` | `k_sem`, limite 1 | Mudança local → `t_enlace_tx` manda na hora |
+
+**Interrupção da UART2:** lê cada byte recebido e o coloca na `fila_rx` com `k_msgq_put` sem espera. Se a fila estiver cheia, o byte se perde, e o quadro dele falha na verificação.
+
+**`t_enlace_rx`:**
+1. Espera um byte da fila por até `PERIODO_MS` e o junta aos três anteriores.
+2. Se os quatro formam um quadro válido (começa com `0xA5`, só usa os bits 0 a 2, verificação certa):
+   - com o papel oposto ao desta placa: guarda SINAL e NOTURNO em `remoto`, anota a hora e, se algo mudou, dá `sem_mudanca`. Na primeira vez, registra `enlace conectado`;
+   - com o mesmo papel: descarta o quadro e registra, uma vez só, `enlace: quadro com o mesmo papel desta placa`.
+3. Se o enlace estava conectado e o último quadro válido tem mais de `PRAZO_MS`, zera `remoto`, registra `enlace perdido` e dá `sem_mudanca`.
+
+**`t_enlace_tx`:** manda o quadro com os bits de `local` e espera `sem_envio` por até `PERIODO_MS`. Assim manda logo que o estado muda e repete a cada 50 ms.
 
 **Funções:**
 
 | Função | Comportamento |
 |---|---|
-| `enlace_iniciar(papel)` | Na placa única, só guarda o papel. Nos outros papéis, configura as quatro linhas no estado seguro: mestre com VEZ = 0, escrava com PARADO = 1, NOTURNO = 0. Instala a interrupção da entrada nas duas bordas. |
+| `enlace_iniciar(papel)` | Na placa única, só guarda o papel. Nos outros papéis, começa no estado seguro (mestre com VEZ = 0, escrava com PARADO = 1, NOTURNO = 0), instala a interrupção da UART2 e começa as duas threads. |
 | `enlace_sou_mestre()`, `enlace_uma_placa()` | Devolvem o papel. |
-| `enlace_publicar(valor)` | Escreve na saída do enlace: VEZ no mestre, PARADO na escrava. |
-| `enlace_ler()` | Lê a entrada do enlace: PARADO no mestre, VEZ na escrava. |
-| `enlace_esperar(nivel, prazo)` | Espera a entrada chegar ao nível pedido. Depois de cada aviso da interrupção, **lê o nível de novo**, então um aviso atrasado ou repetido não causa decisão errada. Retorna 0, ou `-EAGAIN` se o prazo acabou. |
-| `enlace_aguardar_mudanca(prazo)` | Zera os avisos antigos e espera uma mudança a partir de agora. Retorna `true` se houve mudança. |
-| `enlace_publicar_noturno(ligado)`, `enlace_ler_noturno()` | Fio NOTURNO: o mestre escreve, a escrava lê. Sem interrupção: a escrava consulta o nível. |
+| `enlace_publicar(valor)` | Muda o SINAL desta placa (VEZ no mestre, PARADO na escrava) e pede o envio imediato. |
+| `enlace_ler()` | SINAL da outra placa: PARADO no mestre, VEZ na escrava. Vale 0 sem enlace. |
+| `enlace_esperar(nivel, prazo)` | Espera o SINAL da outra placa chegar ao nível pedido. Depois de cada aviso, **lê o nível de novo**, então um aviso atrasado ou repetido não causa decisão errada. Retorna 0, ou `-EAGAIN` se o prazo acabou. |
+| `enlace_aguardar_mudanca(prazo)` | Zera os avisos antigos e espera qualquer mudança na outra placa a partir de agora. Retorna `true` se houve mudança. |
+| `enlace_publicar_noturno(ligado)`, `enlace_ler_noturno()` | Bit NOTURNO: o mestre manda, a escrava lê. Vale 0 sem enlace. |
 
 ### 3.2 `lib/modo_noturno`
 
@@ -141,8 +175,8 @@ Convenções comuns aos quatro módulos:
 | Função | Comportamento |
 |---|---|
 | `modo_noturno_iniciar(usar_botao)` | No mestre (`true`), configura o botão e a interrupção. Na escrava (`false`), não configura nada, e a thread do botão fica bloqueada para sempre. |
-| `modo_noturno_pedido()` | No mestre, devolve `pedido_botao`. Na escrava, lê o fio NOTURNO. |
-| `modo_noturno_aplicar(ligado)` | Muda o modo efetivo e registra `modo NOTURNO` ou `modo NORMAL`. No mestre, também escreve no fio NOTURNO. Só o semáforo de veículos chama, no ponto seguro. |
+| `modo_noturno_pedido()` | No mestre, devolve `pedido_botao`. Na escrava, lê o bit NOTURNO do enlace. |
+| `modo_noturno_aplicar(ligado)` | Muda o modo efetivo e registra `modo NOTURNO` ou `modo NORMAL`. No mestre, também manda o bit NOTURNO pelo enlace. Só o semáforo de veículos chama, no ponto seguro. |
 | `modo_noturno_ativo()` | Devolve o modo efetivo. As threads das luzes usam para decidir se piscam. |
 
 ### 3.3 `lib/semaforo_pedestres`
@@ -198,7 +232,7 @@ Cada `liberar` precisa ser seguido de um `encerrar` antes de os veículos abrire
 | `ESPERA_CANCELADA_MS` | 5000 ms | Espera do mestre depois de cancelar a vez: verde + amarelo + 1 s de margem |
 | `AVISO_MS` | 10000 ms | Intervalo dos avisos de espera longa na serial |
 | `ESTAVEL_MS` | 1000 ms | Tempo que a escrava precisa ver VEZ = 0 depois do boot |
-| `CONSULTA_MS` | 100 ms | Intervalo em que a escrava confere o fio NOTURNO enquanto espera a vez |
+| `CONSULTA_MS` | 100 ms | Intervalo máximo em que a escrava confere o pedido do modo noturno enquanto espera a vez (ela também acorda a cada mudança no quadro do mestre) |
 | `TOQUE_BLOQUEIO_MS` | 200 ms | Registro da travessia: toques mais próximos que isso contam como um |
 | `TOQUE_SOLTO_MS` | 20 ms | Registro da travessia: intervalo para conferir se o botão foi solto |
 | `TOQUE_REPIQUE_MS` | 50 ms | Registro da travessia: espera depois de soltar, para o repique passar |
@@ -248,7 +282,7 @@ Ela não muda o ciclo. Toques a menos de 0,2 s um do outro aparecem como um só 
 | `mestre_dar_a_vez()` | Mestre | Levanta VEZ e espera PARADO = 0 por até `RESPOSTA_MS`. Sem resposta, baixa VEZ, registra `escrava nao pegou a vez: esperando o ciclo dela` e espera `ESPERA_CANCELADA_MS`. Com resposta, espera PARADO = 1, avisando `aguardando a escrava fechar` a cada `AVISO_MS`, e baixa VEZ. |
 | `mestre_esperar_liberacao()` | Mestre | Espera `GUARDA_MS` e então espera PARADO = 1, avisando `aguardando a escrava parar` a cada `AVISO_MS`. |
 | `escrava_esperar_vez_zerada()` | Escrava | Só no boot. Espera VEZ = 0, avisando `aguardando VEZ = 0 do mestre`, e exige que VEZ fique em 0 por `ESTAVEL_MS`. |
-| `escrava_esperar_a_vez()` | Escrava | Retorna `true` para abrir ou `false` se o modo noturno foi pedido. Numa subida de VEZ ainda não usada, baixa PARADO, espera `GUARDA_MS` e confere VEZ de novo: se VEZ caiu, levanta PARADO e continua esperando. Confere o fio NOTURNO a cada `CONSULTA_MS`. Se a espera passa de `AVISO_MS`, registra `aguardando a vez do mestre` e repete a cada `AVISO_MS`. |
+| `escrava_esperar_a_vez()` | Escrava | Retorna `true` para abrir ou `false` se o modo noturno foi pedido. Numa subida de VEZ ainda não usada, baixa PARADO, espera `GUARDA_MS` e confere VEZ de novo: se VEZ caiu, levanta PARADO e continua esperando. Confere o pedido do modo noturno a cada mudança no quadro do mestre, e no máximo a cada `CONSULTA_MS`. Se a espera passa de `AVISO_MS`, registra `aguardando a vez do mestre` e repete a cada `AVISO_MS`. |
 
 **`semaforo_veiculo_iniciar()`:** copia o papel do enlace, configura os LEDs apagados e o botão de travessia com interrupção, e dá `vez_vermelho`. Deve ser a última inicialização, porque começa o ciclo.
 
@@ -281,6 +315,8 @@ A serial (UART0, 115200 bps, pelo USB da OpenSDA) é a principal evidência dos 
 | `carros aguardando a escrava fechar`, `carros aguardando a escrava parar` | Mestre | A cada 10 s de espera |
 | `carros aguardando VEZ = 0 do mestre` | Escrava | A cada 10 s de espera, no boot |
 | `carros aguardando a vez do mestre` | Escrava | A cada 10 s de espera além do normal |
+| `enlace conectado`, `enlace perdido` | `enlace` | Quando começam a chegar quadros válidos da outra placa, e quando eles param por mais de 200 ms |
+| `enlace: quadro com o mesmo papel desta placa` | `enlace` | Uma vez, ao receber um quadro com o próprio papel (mesmo programa nas duas placas, ou TX ligado no próprio RX) |
 | `Semaforo iniciado como ...`, `Erro N ao iniciar o semaforo` | Arquivo principal | Na inicialização, sem o tempo |
 
 ## 5. Desvios conhecidos

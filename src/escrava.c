@@ -2,7 +2,7 @@
  * Placa ESCRAVA: semáforo de carros e pedestres.
  *
  * Só abre os próprios carros quando o mestre (src/mestre.c, compilado com
- * -DPAPEL=mestre) dá a vez, e entra no modo noturno pelo fio NOTURNO. Sem o
+ * -DPAPEL=mestre) dá a vez, e entra no modo noturno pelo bit NOTURNO do enlace. Sem o
  * mestre, fica com os carros no vermelho: falha segura.
  *
  * A lógica da escrava (esperar a vez, conferir de novo antes de abrir,
@@ -25,7 +25,7 @@ int main(void)
 	int ret = enlace_iniciar(ENLACE_ESCRAVA);
 
 	if (ret == 0) {
-		ret = modo_noturno_iniciar(false);   /* o pedido vem do fio NOTURNO */
+		ret = modo_noturno_iniciar(false);   /* o pedido vem do bit NOTURNO do enlace */
 	}
 	if (ret == 0) {
 		ret = semaforo_pedestres_iniciar();

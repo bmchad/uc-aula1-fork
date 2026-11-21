@@ -49,6 +49,7 @@ A [captura_serial.py](ferramentas/captura_serial.py) grava a serial de uma ou du
 python3 tests/ferramentas/captura_serial.py tests/evidencias/TA-09/captura.log mestre=/dev/ttyACM0 escrava=/dev/ttyACM1
 ```
 
+- **Duração:** cada teste diz quanto capturar; vai de 20 s a 2 min. O tempo foi escolhido para ter o número de repetições do critério e nada mais. Uma captura por etapa, cada uma no próprio arquivo (`etapa1.log`, `etapa2.log`...), deixa a análise e a evidência mais fáceis de ler.
 - **Formato:** `tempo do PC (s)`, TAB, `nome da placa`, TAB, `tempo da placa (ms) | evento`. O formato do evento está na seção 4 do [03-projeto-componentes.md](../docs/03-projeto-componentes.md).
 - **Um relógio só:** as duas portas são lidas pelo mesmo programa, então o tempo do PC é o mesmo para as duas placas. O tempo da placa mede as durações dentro dela, e o tempo do PC decide a ordem entre as placas (RNF-04).
 - **Notas:** cada linha digitada no terminal durante a captura entra no log como `nota`, com o tempo do PC. Use para marcar o que foi feito, por exemplo `tirei o fio VEZ`.
@@ -78,7 +79,7 @@ python3 tests/ferramentas/analisa_log.py tests/evidencias/TA-09/captura.log --re
 - **Fases excluídas:** fases afetadas por travessia, modo noturno, partida ou falha não entram na conferência dos tempos do ciclo normal. O relatório mostra quantas foram excluídas e por quê.
 - **Resultado:** o relatório começa pela lista das conferências que falharam. O programa termina com código 0 se tudo passou e 1 se algo falhou.
 - **Figura:** precisa do matplotlib. Sem ele, só o relatório é gerado.
-- **Logs da etapa 1:** a análise também lê o formato antigo, sem o nome da placa. No [captura_ciclos.log](../docs/semaforo/captura_ciclos.log), ela reproduz os números do relatório da etapa 1. O [analisa_etapa1.py](../docs/semaforo/analisa_etapa1.py) fica como registro daquele teste.
+- **Logs da etapa 1:** a análise também lê o formato antigo, sem o nome da placa. No [captura_ciclos.log](https://github.com/bmchad/uc-aula1-fork/blob/5890a32/docs/semaforo/captura_ciclos.log) da etapa 1 (commit `5890a32`), ela reproduz os números do relatório daquela etapa.
 
 ### 2.5 Evidências
 
@@ -122,7 +123,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 - **Pré-condição:** captura da serial ligada, sem tocar em nenhum botão. Parte A: uma placa com `-DPAPEL=placa_unica`. Parte B: as duas placas ligadas pelos fios, com `-DPAPEL=mestre` e `-DPAPEL=escrava`.
 - **Etapas:**
   1. Ligar e esperar o primeiro ciclo completo.
-  2. Capturar pelo menos 6 ciclos seguidos (50 s).
+  2. Capturar pelo menos 6 ciclos seguidos: cerca de 50 s, com uma placa ou com duas. **Comece a captura com o sistema já rodando, sem apertar o RESET:** as fases da partida não entram na conta, e começar no boot gasta um ciclo à toa.
   3. Calcular a duração de cada fase completa pelo tempo da placa.
 - **Resultado esperado (parte A),** em pelo menos 5 ciclos:
 
@@ -190,6 +191,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   - **RF-11:** uma única linha `travessia pedida` e uma única passagem pelo amarelo. O verde seguinte dura 2,97 a 3,03 s.
 - **Observação (parte B):** um toque numa via encurta o vermelho da outra. Isso é esperado e não reprova o TA-02.
 - **Observação (RF-11):** na serial, toques a menos de 0,2 s um do outro aparecem como um só. Para contar os 5 toques, espaçe-os um pouco mais que isso.
+- **Capturas:** uma por etapa. Cada verde aceita só uma travessia, e um ciclo leva cerca de 8 s, então as etapas 1 e 2 levam cerca de 45 s cada; as outras, cerca de 20 s.
 - **Evidência:** os logs e o relatório da análise.
 
 ### TA-06: botão do modo noturno
@@ -199,7 +201,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 - **Pré-condição:** `-DPAPEL=placa_unica`, captura ligada e vídeo do fio no D9.
 - **Etapas:**
   1. Dar 10 toques curtos no D9, separados por pelo menos 0,5 s, contando em voz alta.
-  2. Dar 5 toques longos, segurando o fio no GND por 2 s.
+  2. Em outra captura, dar 5 toques longos, segurando o fio no GND por 2 s.
 - **Resultado esperado:** exatamente 10 linhas `botao noturno: pedido ...` na etapa 1 e 5 na etapa 2, alternando entre `NOTURNO` e `NORMAL`. Se aparecerem alternâncias a mais, é repique, e o `DEBOUNCE_MS` precisa subir.
 - **Evidência:** o log e o vídeo.
 - **Etapa 1:** T5, inconclusivo, porque não foram contados os toques.
@@ -210,10 +212,11 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 - **Requisitos:** RF-13, RF-14, RF-15, RF-18.
 - **Pré-condição:** parte A com `-DPAPEL=placa_unica`; parte B com as duas placas. Captura da serial ligada.
 - **Etapas:**
-  1. Pedir o modo noturno e esperar o pisca começar.
-  2. Manter o modo por pelo menos 10 s.
-  3. Durante o pisca, dar 5 toques no botão de travessia de cada placa.
-  4. Sair do modo noturno e esperar o primeiro verde.
+  1. Começar a captura e pedir o modo noturno. O pisca começa em até 8,4 s.
+  2. Manter o pisca por pelo menos 10 s, dando 5 toques no botão de travessia de cada placa durante ele.
+  3. Sair do modo noturno e esperar o primeiro verde dos veículos terminar.
+
+  Tudo numa captura só, de cerca de 35 s.
 - **Resultado esperado:**
   - **RF-13 e RF-14:** cada meio período do amarelo dos veículos e do vermelho dos pedestres dura de 0,99 a 1,01 s. Nenhuma linha `carros VERDE`, `carros VERMELHO` ou `pedestres VERDE` durante o pisca.
   - **RF-15:** em cada via, as trocas do pisca dos veículos e dos pedestres ficam a até 50 ms uma da outra.
@@ -227,7 +230,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 - **Pré-condição:** parte A com `-DPAPEL=placa_unica`; parte B com as duas placas. Captura ligada.
 - **Etapas:**
   1. **Entrada:** pedir o modo noturno uma vez em cada fase da via do botão: verde, amarelo e vermelho. Sair do modo entre uma tentativa e a outra.
-  2. **Saída:** sair do modo noturno 5 vezes, depois de pelo menos 4 s de pisca.
+  2. **Saída:** sair do modo noturno 5 vezes, depois de pelo menos 4 s de pisca. Cada etapa cabe numa captura de cerca de 1 min.
 - **Resultado esperado:**
   - **Entrada:** a linha `modo NOTURNO` aparece só no fim de um vermelho dos veículos, até 8,4 s depois da linha `botao noturno: pedido NOTURNO`. Na parte B, as duas vias estão fechadas quando o pisca começa, e a escrava começa a piscar também em até 8,4 s.
   - **Saída:** depois de `botao noturno: pedido NORMAL`, a primeira luz dos veículos é o vermelho: em até 1,05 s na placa do botão e, na parte B, em até 2,1 s na escrava, comparando pelo tempo do PC.
@@ -237,51 +240,54 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 ### TA-09: operação com duas placas
 
 - **Nível:** integração.
-- **Requisitos:** RF-19, RF-20.
-- **Pré-condição:** as duas placas gravadas, com a captura das duas seriais.
+- **Requisitos:** RF-19, RF-20, RS-06.
+- **Pré-condição:** uma placa gravada com `-DPAPEL=mestre` e a outra com `-DPAPEL=escrava`, com a captura das seriais.
 - **Etapas:**
-  1. **Escrava sozinha:** sem nenhum fio entre as placas, ligar só a escrava por 30 s.
-  2. **Mestre com a escrava sempre parada:** sem a escrava, ligar o D11 do mestre ao GND por um resistor de 1 kΩ. Como os sinais são ativos em nível baixo, isso simula PARADO = 1 o tempo todo. Observar 3 ciclos.
-  3. **Revezamento:** ligar os quatro fios (seção 1.4 do 03), na ordem GND primeiro, e capturar pelo menos 10 ciclos.
-  4. **Modo noturno nas duas:** ligar e desligar o modo noturno 5 vezes pelo botão do mestre.
+  1. **Laço na própria placa:** sem a outra placa, ligar o D12 no D11 da mesma placa, pelo resistor de 1 kΩ, e capturar 20 s. Fazer nas duas placas. Isso confere o TX, o RX e os pinos de cada uma antes de ligar as duas.
+  2. **Escrava sozinha:** sem nenhum fio entre as placas, ligar só a escrava e capturar 25 s desde o boot, para pegar dois avisos.
+  3. **Mestre sozinho:** sem nenhum fio entre as placas, ligar só o mestre e capturar 25 s desde o boot, para pegar dois avisos.
+  4. **Revezamento:** ligar os três fios (seção 1.4 do 03), na ordem GND primeiro, espere alguns segundos e capture pelo menos 6 ciclos das duas vias, cerca de 50 s.
+  5. **Modo noturno nas duas:** ligar e desligar o modo noturno 5 vezes pelo botão do mestre, numa captura de cerca de 1 min e meio.
 - **Resultado esperado:**
-  1. A escrava fica com os veículos no vermelho e os pedestres no verde, e registra `aguardando a vez do mestre` a cada 10 s.
-  2. O mestre registra `escrava nao pegou a vez: esperando o ciclo dela` em cada ciclo, e o vermelho dele dura cerca de 8 s: os 3 s do prazo, mais os 5 s da espera, mais a guarda.
-  3. Pelo tempo do PC, as vias abrem alternadamente: A, B, A, B. Uma via só abre depois de a outra fechar.
-  4. As duas placas entram e saem do pisca no mesmo ciclo, todas as 5 vezes.
+  1. A placa registra `enlace: quadro com o mesmo papel desta placa` e nunca `enlace conectado`. Os veículos ficam no vermelho. Se essa linha não aparecer, o TX, o RX ou o fio estão errados, e não adianta ligar as duas placas.
+  2. A escrava fica com os veículos no vermelho e os pedestres no verde, registra `aguardando a vez do mestre` a cada 10 s e nunca `enlace conectado`.
+  3. O mestre fica com os veículos no vermelho e os pedestres no verde e registra `aguardando a escrava parar` a cada 10 s.
+  4. As duas placas registram `enlace conectado` logo depois do boot. Pelo tempo do PC, as vias abrem alternadamente: A, B, A, B. Uma via só abre depois de a outra fechar.
+  5. As duas placas entram e saem do pisca no mesmo ciclo, todas as 5 vezes.
+- **Evidência:** os logs de cada etapa.
 
-### TA-10: ensaio longo de segurança
+### TA-10: ensaio de segurança
 
 - **Nível:** sistema.
 - **Requisitos:** RS-01, RS-02, RS-04.
 - **Pré-condição:** as duas placas ligadas pelos fios, com a captura das duas seriais.
 - **Etapas:**
-  1. Capturar pelo menos 5 minutos de operação (o critério mínimo do 01 é 30 s).
-  2. Durante a captura, cobrir: o modo normal; toques de travessia nas duas placas, em todas as fases; e pelo menos duas entradas e saídas do modo noturno.
-  3. Reconstruir o estado de cada semáforo a partir dos logs e procurar violações.
+  1. Capturar 2 minutos de operação, cobrindo: o modo normal; toques de travessia nas duas placas, em todas as fases; e pelo menos duas entradas e saídas do modo noturno. O critério mínimo do 01 é 30 s; 2 minutos dão uns 14 ciclos, o bastante para passar por todas as combinações.
+  2. Rodar a análise e procurar violações.
 - **Resultado esperado:** zero instantes com:
   - o verde dos pedestres aceso com os veículos da mesma via no verde ou no amarelo (RS-01);
   - as duas vias abertas, comparando pelo tempo do PC (RS-04).
 - **Limite da evidência para o RS-02:** a serial registra quando cada luz acende, mas não quando apaga. Ela mostra a ordem, mas não prova que a luz anterior apagou. O RS-02 é conferido pelo vídeo do TA-01 e pela revisão do mutex no TA-12.
 - **Evidência:** os logs, a linha do tempo das duas vias e a contagem de violações.
 
-### TA-11: falhas de fiação e placa desligada
+### TA-11: falhas do enlace e placa desligada
 
 - **Nível:** sistema.
-- **Requisito:** RS-05.
+- **Requisitos:** RS-05, RS-06.
 - **Pré-condição:** as duas placas rodando no modo normal, com a captura das duas seriais.
-- **Etapas:** provocar cada falha abaixo **no meio do ciclo**, uma de cada vez. Fazer cada uma duas vezes: com a via A aberta e com a via B aberta. Manter a falha por pelo menos 30 s, desfazer e esperar o sistema voltar.
+- **Etapas:** provocar cada falha abaixo **no meio do ciclo**, uma de cada vez. Fazer cada uma duas vezes: com a via A aberta e com a via B aberta. Numa captura só: provocar a falha, mantê-la por 25 s (para pegar dois avisos), desfazê-la e esperar o sistema voltar a se revezar. Cada caso leva cerca de 45 s. Digitar uma nota na captura no instante de cada falha, por exemplo `tirei o fio 2`.
 
   | Falha | Como provocar | Comportamento esperado (02-arquitetura, seção 2.5) |
   |---|---|---|
-  | Fio VEZ solto | Tirar o fio 2 | O mestre cancela a vez e segue sozinho; a escrava fica no vermelho e avisa |
-  | Fio PARADO solto | Tirar o fio 3 | As duas vias ficam no vermelho, e as duas placas avisam |
-  | Fio NOTURNO solto | Tirar o fio 4 e pedir o modo noturno | O mestre pisca; a escrava fica no vermelho e avisa |
-  | Escrava desligada | Tirar o USB da escrava | O mestre segue sozinho ou fica no vermelho. **A confirmar.** |
-  | Mestre desligado | Tirar o USB do mestre | A escrava pisca ou fica no vermelho. **A confirmar.** |
+  | Fio TX do mestre solto | Tirar o fio 2 | A escrava registra `enlace perdido`, fica no vermelho e avisa; o mestre cancela a vez e segue sozinho |
+  | Fio TX da escrava solto | Tirar o fio 3 | O mestre registra `enlace perdido`; as duas vias ficam no vermelho, e as duas placas avisam |
+  | Ruído no fio de dados | Encostar e soltar o fio 2 do GND várias vezes, por 5 s | Nenhuma via abre fora de hora. Pode aparecer `enlace perdido` e depois `enlace conectado` |
+  | Escrava desligada | Tirar o USB da escrava | O mestre registra `enlace perdido` e para no vermelho, avisando |
+  | Mestre desligado | Tirar o USB do mestre | A escrava registra `enlace perdido`, termina a fase e fica no vermelho, avisando |
 
-- **Resultado esperado:** em todos os casos, nenhuma violação de RS-01 a RS-04 na placa que continua ligada. Ela só para com o vermelho dos veículos aceso fixo ou no pisca, nunca no verde. Parada no vermelho, ela registra um aviso pelo menos a cada 10 s.
-- **Depois do teste:** atualizar a seção 2.5 do [02-arquitetura.md](../docs/02-arquitetura.md) com o comportamento real nos casos de placa desligada.
+- **Resultado esperado:** em todos os casos, nenhuma violação de RS-01 a RS-04 na placa que continua ligada. Ela só para com o vermelho dos veículos aceso fixo ou no pisca, nunca no verde. Parada no vermelho, ela registra um aviso pelo menos a cada 10 s. Depois de desfeita a falha, o sistema volta a se revezar. O caso de quadro com o mesmo papel (RS-06) é a etapa 1 do TA-09.
+- **Depois do teste:** se algum caso se comportar diferente da seção 2.5 do [02-arquitetura.md](../docs/02-arquitetura.md), atualizar a tabela com o comportamento real.
+- **Evidência:** os logs de cada caso, com as notas.
 
 ### TA-12: revisão de código
 
@@ -295,7 +301,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   | 1 | Há uma thread por luz: três dos veículos e duas dos pedestres (RNF-01) |
   | 2 | Cada thread só escreve no pino da própria luz. A do amarelo escreve nos dois pinos do RGB, e só ela faz isso. As threads auxiliares (botão noturno e registro da travessia) não escrevem em nenhum LED. |
   | 3 | Há um mutex por semáforo, travado antes de acender a luz e destravado depois de apagar, em todos os caminhos, inclusive no pisca (RNF-02) |
-  | 4 | As três rotinas de interrupção (travessia, botão noturno e entrada do enlace) só chamam `k_sem_give` (RNF-03) |
+  | 4 | As interrupções dos dois botões só chamam `k_sem_give`, e a da UART2 só copia o byte recebido para a fila com `k_msgq_put` sem espera (RNF-03) |
   | 5 | Nenhuma rotina de interrupção usa mutex, `printk` ou espera |
 
 - **Resultado esperado:** todos os itens conferidos.

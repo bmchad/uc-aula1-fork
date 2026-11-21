@@ -1,2 +1,5 @@
 # Pastas geradas pelo west build
 build/
+
+# Bytecode do Python
+__pycache__/

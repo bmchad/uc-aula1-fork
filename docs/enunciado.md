@@ -73,7 +73,7 @@ O sistema deve controlar semáforos de dois tipos: pedestres e carros, incluindo
 | **Data dos testes** | 18/11/2026 |
 | **Firmware testado** | Commit [`8ae444e`](https://github.com/bmchad/uc-aula1-fork/commit/8ae444e), com `UMA_PLACA true` em [`src/main.c`](https://github.com/bmchad/uc-aula1-fork/blob/8ae444e/src/main.c) (hoje [`src/mestre.c`](../src/mestre.c)) |
 | **Projeto** | [`src/README.md`](../src/README.md): arquitetura das duas placas, e plano de testes. As conexões estão hoje no [03-projeto-componentes.md](03-projeto-componentes.md), e a montagem da etapa 1 é a da seção 1.5 |
-| **Evidências** | [`docs/semaforo/`](semaforo/): logs da serial, linha do tempo e o script de análise ([anexos](#anexos)) |
+| **Evidências** | [`docs/semaforo/`](https://github.com/bmchad/uc-aula1-fork/tree/5890a32/docs/semaforo) (no commit `5890a32`; a pasta saiu do repositório depois): logs da serial, linha do tempo e o script de análise ([anexos](#anexos)) |
 | **Situação** | T0 a T4 aprovados; T5 inconclusivo; T6, T7 e T8 pendentes ([seção 6](#6-pendências)) |
 
 ## 1. Objetivo
@@ -108,7 +108,7 @@ Validar numa placa só, antes de ligar a segunda, as cinco threads (três dos ca
 
 ### 4.1 T0 e T1: gravação e boot
 
-A gravação terminou sem erros. Log do boot ([`captura_boot.log`](semaforo/captura_boot.log)):
+A gravação terminou sem erros. Log do boot ([`captura_boot.log`](https://github.com/bmchad/uc-aula1-fork/blob/5890a32/docs/semaforo/captura_boot.log)):
 
 ```
 *** Booting Zephyr OS build zephyr-v40200 ***
@@ -122,7 +122,7 @@ As duas ruas começam fechadas, e o verde dos pedestres só acende depois do ver
 
 ### 4.2 T2: tempos
 
-Captura de 45 s com a placa rodando ([`captura_ciclos.log`](semaforo/captura_ciclos.log)). Só entram as fases completas, e a fase do modo noturno fica de fora.
+Captura de 45 s com a placa rodando ([`captura_ciclos.log`](https://github.com/bmchad/uc-aula1-fork/blob/5890a32/docs/semaforo/captura_ciclos.log)). Só entram as fases completas, e a fase do modo noturno fica de fora.
 
 | Fase | Medido | Enunciado | Fases medidas |
 |---|---|---|---|
@@ -137,7 +137,7 @@ Os 10 ms a mais por ciclo (0,125%) vêm das trocas entre threads e das mensagens
 
 ### 4.3 T3: sincronismo e exclusão mútua
 
-![Linha do tempo dos semáforos de carros e de pedestres durante a captura](semaforo/figura1_linha_do_tempo.png)
+![Linha do tempo dos semáforos de carros e de pedestres durante a captura](https://github.com/bmchad/uc-aula1-fork/raw/5890a32/docs/semaforo/figura1_linha_do_tempo.png)
 
 - Em 5 ciclos, não houve nenhum instante com os pedestres no verde e os carros no verde ou no amarelo.
 - Nas 11 trocas entre os dois semáforos, a segunda luz acendeu 2 a 3 ms depois da primeira. O verde dos pedestres sempre veio depois do vermelho dos carros, e o verde dos carros sempre depois do vermelho dos pedestres.
@@ -181,9 +181,9 @@ O log tem 10 alternâncias em 7 s, algumas com só 133 ms entre elas. Não foi r
 
 | Arquivo | Conteúdo |
 |---|---|
-| [`captura_boot.log`](semaforo/captura_boot.log) | Boot logo depois da gravação |
-| [`captura_ciclos.log`](semaforo/captura_ciclos.log) | 45 s de ciclos, com os toques do botão e o modo noturno |
-| [`figura1_linha_do_tempo.png`](semaforo/figura1_linha_do_tempo.png) | Linha do tempo gerada a partir de `captura_ciclos.log` |
-| [`analisa_etapa1.py`](semaforo/analisa_etapa1.py) | Calcula as durações e as violações e gera a figura: `python docs/semaforo/analisa_etapa1.py docs/semaforo/captura_ciclos.log saida.png` |
+| [`captura_boot.log`](https://github.com/bmchad/uc-aula1-fork/blob/5890a32/docs/semaforo/captura_boot.log) | Boot logo depois da gravação |
+| [`captura_ciclos.log`](https://github.com/bmchad/uc-aula1-fork/blob/5890a32/docs/semaforo/captura_ciclos.log) | 45 s de ciclos, com os toques do botão e o modo noturno |
+| [`figura1_linha_do_tempo.png`](https://github.com/bmchad/uc-aula1-fork/blob/5890a32/docs/semaforo/figura1_linha_do_tempo.png) | Linha do tempo gerada a partir de `captura_ciclos.log` |
+| [`analisa_etapa1.py`](https://github.com/bmchad/uc-aula1-fork/blob/5890a32/docs/semaforo/analisa_etapa1.py) | Calcula as durações e as violações e gera a figura: `python docs/semaforo/analisa_etapa1.py docs/semaforo/captura_ciclos.log saida.png` |
 
 Formato dos logs: `tempo do PC (s)`, TAB, `tempo da placa (ms) | evento`.

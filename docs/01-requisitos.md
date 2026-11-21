@@ -33,7 +33,7 @@ Cada via tem o seu botão de travessia, que age só nos veículos da própria vi
 | RF-13 | No modo noturno, o amarelo dos veículos deve piscar com 1 s aceso e 1 s apagado, e as outras luzes dos veículos devem ficar apagadas. | Enunciado §3 | Com o modo ativo por pelo menos 10 s, nas duas vias: cada meio período dura 1 s ± 1%, e nem o verde nem o vermelho dos veículos acendem |
 | RF-14 | No modo noturno, o vermelho dos pedestres deve piscar com 1 s aceso e 1 s apagado, e o verde dos pedestres deve ficar apagado. | Enunciado §3 | Mesmo ensaio de RF-13, nas luzes dos pedestres |
 | RF-15 | Em cada via, o pisca dos veículos e o dos pedestres devem estar em fase: os dois acendem e apagam juntos. | (dupla) | Nas trocas do pisca, a diferença entre os dois semáforos da mesma via é ≤ 50 ms |
-| RF-16 | O sistema deve entrar no modo noturno só no ponto seguro, sem interromper nenhuma fase do ciclo normal. | (dupla) | Pedido em cada fase do ciclo: o pisca começa no fim do vermelho dos veículos, nas duas vias, em até 8,4 s após o pedido. Os 0,4 s cobrem a troca de sinais entre as placas e a consulta da escrava ao fio NOTURNO, a cada 0,1 s |
+| RF-16 | O sistema deve entrar no modo noturno só no ponto seguro, sem interromper nenhuma fase do ciclo normal. | (dupla) | Pedido em cada fase do ciclo: o pisca começa no fim do vermelho dos veículos, nas duas vias, em até 8,4 s após o pedido. Os 0,4 s cobrem a troca de mensagens entre as placas |
 | RF-17 | Ao sair do modo noturno, o sistema deve voltar ao modo normal com as duas vias fechadas: em até 1 s após o pedido na placa que tem o botão, e em até 2 s na outra, que só fica sabendo quando a primeira sai do pisca. | (dupla) | 5 saídas: a primeira luz dos veículos depois do pisca é o vermelho nas duas vias, em até 1,05 s após a linha `botao noturno: pedido NORMAL` na placa do botão e em até 2,1 s na outra |
 | RF-18 | No modo noturno, o botão de travessia não deve ter efeito, nem durante o pisca nem depois dele. | (dupla) | Toques no botão de travessia das duas vias durante o pisca: o pisca continua dentro de RF-13 e RF-14, e, ao sair do modo, o primeiro verde dos veículos dura 3 s ± 1% |
 
@@ -41,7 +41,7 @@ Cada via tem o seu botão de travessia, que age só nos veículos da própria vi
 
 | ID | Requisito | Origem | Critério de aceitação |
 |---|---|---|---|
-| RF-19 | O sistema deve usar dois microcontroladores, um de cada integrante, cada um controlando uma via. As placas trocam sinais para que as vias se revezem: uma só abre depois de a outra fechar. | Enunciado §1 e §2 | Inspeção: duas placas ligadas, e o sistema completo só funciona com as duas. Na serial das duas, as vias abrem alternadamente |
+| RF-19 | O sistema deve usar dois microcontroladores, um de cada integrante, cada um controlando uma via. As placas trocam mensagens por uma UART para que as vias se revezem: uma só abre depois de a outra fechar. | Enunciado §1 e §2 | Inspeção: duas placas ligadas, e o sistema completo só funciona com as duas. As duas placas registram `enlace conectado`, e na serial das duas as vias abrem alternadamente |
 | RF-20 | Só uma das placas deve ter o botão do modo noturno, e a outra deve seguir o modo dela. | (dupla) | Com o modo ligado e desligado 5 vezes, as duas placas entram e saem do pisca no mesmo ciclo |
 
 ## 2. Requisitos de segurança
@@ -54,7 +54,8 @@ São as regras que nunca podem ser quebradas, em nenhum modo e com qualquer falh
 | RS-02 | Em cada semáforo, só uma luz deve estar acesa por vez. O amarelo conta como uma luz só, mesmo sendo feito com o vermelho e o verde do LED RGB. | Enunciado §1, §2 e Req. de Projeto 2 | Zero instantes com duas luzes do mesmo semáforo acesas no ensaio de RS-01 |
 | RS-03 | Nas trocas, o semáforo que fecha deve fechar antes de o outro abrir. Um instante com os dois no vermelho é permitido; o contrário, não. Vale dentro de cada via e entre as duas vias. | (dupla) | Em todas as trocas do ensaio de RS-01, o vermelho de um aparece na serial antes do verde do outro. Entre as duas vias, a ordem é decidida pelo tempo do PC (RNF-04) |
 | RS-04 | As duas vias nunca devem estar abertas (veículos no verde ou no amarelo) ao mesmo tempo. O pisca do modo noturno, que acontece nas duas vias juntas (RF-13), não conta como via aberta. | (dupla) | Zero instantes com as duas vias abertas no ensaio de RS-01, comparando as seriais das duas placas pelo tempo do PC (RNF-04) |
-| RS-05 | Com o fio VEZ, PARADO ou NOTURNO solto, ou com uma placa desligada, a placa que continua ligada deve respeitar RS-01 a RS-04. Ela pode parar o ciclo, mas só com o vermelho dos veículos aceso fixo ou no pisca do modo noturno, nunca com o verde. Parada no vermelho, ela deve avisar a espera na serial pelo menos a cada 10 s. O fio GND fica fora deste requisito: sem ele, os níveis entre as placas ficam indefinidos, e ele é condição de montagem. | (dupla) | Cada um dos fios VEZ, PARADO e NOTURNO solto no meio do ciclo, e cada placa desligada no meio do ciclo, uma falha de cada vez: nenhuma violação na placa ligada, e, se ela parar no vermelho, o aviso aparece na serial enquanto a falha durar |
+| RS-05 | Com o fio de dados de qualquer uma das placas solto (TX do mestre ou TX da escrava), ou com uma placa desligada, a placa que continua ligada deve respeitar RS-01 a RS-04. Ela pode parar o ciclo, mas só com o vermelho dos veículos aceso fixo ou no pisca do modo noturno, nunca com o verde. Parada no vermelho, ela deve avisar a espera na serial pelo menos a cada 10 s. O fio GND fica fora deste requisito: sem ele, a UART não tem referência, e ele é condição de montagem. | (dupla) | Cada um dos dois fios de dados solto no meio do ciclo, e cada placa desligada no meio do ciclo, uma falha de cada vez: nenhuma violação na placa ligada, e, se ela parar no vermelho, o aviso aparece na serial enquanto a falha durar |
+| RS-06 | Uma placa só deve usar o estado da outra a partir de mensagens válidas: com a verificação certa, com o papel oposto ao seu e recebidas há no máximo 200 ms. Sem mensagem válida, os sinais da outra placa valem o estado seguro: sem vez, escrava não parada e modo normal. | (dupla) | Fio de dados solto: a placa que recebia registra `enlace perdido`. Ruído no fio de dados (encostar e soltar o fio do GND por 5 s): nenhuma violação. TX de uma placa ligado no próprio RX: ela registra `enlace: quadro com o mesmo papel desta placa` e nunca `enlace conectado` |
 
 ## 3. Requisitos não funcionais
 
@@ -64,7 +65,7 @@ São as regras que nunca podem ser quebradas, em nenhum modo e com qualquer falh
 |---|---|---|---|
 | RNF-01 | Cada luz deve ser controlada por uma thread própria: três threads para os veículos e duas para os pedestres. | Enunciado §1, §2 e Req. de Projeto 1 | Revisão de código: uma thread por luz, e nenhuma thread acende a luz de outra |
 | RNF-02 | A exclusão mútua entre as luzes de um mesmo semáforo deve usar mutex. | Enunciado §1, §2 e Req. de Projeto 2 | Revisão de código: um mutex por semáforo, travado por toda thread antes de acender sua luz |
-| RNF-03 | Rotinas de interrupção não devem usar mutex. | Zephyr (mutex não pode ser usado em ISR) | Revisão de código: as ISRs só sinalizam semáforos (`k_sem_give`) |
+| RNF-03 | Rotinas de interrupção não devem usar mutex nem esperar. | Zephyr (mutex não pode ser usado em ISR) | Revisão de código: as ISRs só sinalizam semáforos (`k_sem_give`) ou copiam o byte recebido para uma fila sem esperar (`k_msgq_put` com `K_NO_WAIT`) |
 
 ### 3.2 Testabilidade
 
@@ -96,8 +97,8 @@ Os testes de aceitação (TA) serão detalhados em [tests/plano-testes.md](../te
 | RF-13 a RF-15, RF-18 | TA-07: pisca do modo noturno | T6 (pendente) |
 | RF-16, RF-17 | TA-08: entrada e saída do modo noturno | T4 (aprovado, uma placa) |
 | RF-19, RF-20 | TA-09: operação com duas placas | — |
-| RS-01, RS-02, RS-04 | TA-10: ensaio longo de segurança | T3 (parcial: 45 s, uma placa; RS-04 exige as duas) |
-| RS-05 | TA-11: falhas de fiação e placa desligada | — |
+| RS-01, RS-02, RS-04 | TA-10: ensaio de segurança | T3 (parcial: 45 s, uma placa; RS-04 exige as duas) |
+| RS-05, RS-06 | TA-11: falhas do enlace e placa desligada | — |
 | RNF-01 a RNF-03 | TA-12: revisão de código | — |
 | RNF-04, RNF-06 | TA-13: registro na serial e modo de placa única | T0 (build aprovado) e T1 a T4 (usam o registro) |
 | RNF-07, RNF-08 | TA-14: inspeção do repositório | — |

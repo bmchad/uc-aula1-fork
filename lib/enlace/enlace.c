@@ -1,87 +1,174 @@
 /*
- * Enlace entre as duas placas do semáforo.
+ * Enlace entre as duas placas do semáforo, pela UART2.
  *
- * A interrupção da entrada (as duas bordas) só dá k_sem_give. Quem espera
- * sempre confere o nível de novo depois de acordar, então um aviso atrasado
- * ou repetido não causa decisão errada.
+ * Quadro de 4 bytes, de cada placa para a outra:
+ *   [0] 0xA5                      início
+ *   [1] bits                      SINAL, NOTURNO e MESTRE (papel de quem manda)
+ *   [2] contador                  aumenta a cada quadro (só para depuração)
+ *   [3] ~(b0 + b1 + b2)           verificação
+ *
+ * Fluxo:
+ *   - a interrupção da UART só copia cada byte recebido para uma fila
+ *     (k_msgq_put sem espera), sem mutex e sem decidir nada (RNF-03);
+ *   - t_enlace_rx monta os quadros, descarta os inválidos, guarda os bits da
+ *     outra placa e avisa quem espera (sem_mudanca);
+ *   - t_enlace_tx manda o estado desta placa a cada PERIODO_MS e logo que
+ *     ele muda (sem_envio).
+ * Quem espera sempre confere o nível de novo depois de acordar, então um
+ * aviso atrasado ou repetido não causa decisão errada.
  */
 
 #include "enlace.h"
 
-#include <zephyr/drivers/gpio.h>
+#include <string.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/uart.h>
+#include <zephyr/sys/atomic.h>
+#include <zephyr/sys/printk.h>
 
-static const struct gpio_dt_spec saida =
-	GPIO_DT_SPEC_GET(DT_NODELABEL(saida_enlace), gpios);
-static const struct gpio_dt_spec entrada =
-	GPIO_DT_SPEC_GET(DT_NODELABEL(entrada_enlace), gpios);
-static const struct gpio_dt_spec saida_noturno =
-	GPIO_DT_SPEC_GET(DT_NODELABEL(saida_noturno), gpios);
-static const struct gpio_dt_spec entrada_noturno =
-	GPIO_DT_SPEC_GET(DT_NODELABEL(entrada_noturno), gpios);
+#define BYTE_INICIO       0xA5
+#define BIT_SINAL         BIT(0)   /* VEZ (mestre) ou PARADO (escrava) */
+#define BIT_NOTURNO       BIT(1)   /* só o mestre manda */
+#define BIT_MESTRE        BIT(2)   /* papel de quem mandou o quadro */
+#define BITS_VALIDOS      (BIT_SINAL | BIT_NOTURNO | BIT_MESTRE)
+#define PERIODO_MS        50       /* reenvio do estado, mesmo sem mudança */
+#define PRAZO_MS          200      /* sem quadro válido por esse tempo: enlace perdido */
+#define TAMANHO_FILA      64       /* bytes recebidos à espera da t_enlace_rx */
+#define TAMANHO_PILHA     768
+/*
+ * Mesma prioridade das luzes: nenhuma interrompe a outra no meio de um printk,
+ * e as linhas da serial não se misturam. Um quadro pode esperar alguns ms uma
+ * luz terminar de imprimir; a fila guarda os bytes enquanto isso, e a guarda
+ * de 50 ms do handshake cobre o atraso.
+ */
+#define PRIORIDADE_ENLACE 5
 
-static struct gpio_callback callback_entrada;
+static const struct device *const uart = DEVICE_DT_GET(DT_ALIAS(enlace_uart));
 
-K_SEM_DEFINE(sem_mudanca, 0, 1);   /* ISR da entrada -> thread que espera */
+K_SEM_DEFINE(sem_mudanca, 0, 1);   /* t_enlace_rx -> quem espera a outra placa */
+K_SEM_DEFINE(sem_envio, 0, 1);     /* mudança local -> t_enlace_tx manda na hora */
+K_MSGQ_DEFINE(fila_rx, 1, TAMANHO_FILA, 1);   /* ISR da UART -> t_enlace_rx */
 
 static bool mestre;
-static bool sozinha;   /* etapa 1: sem a outra placa */
+static bool sozinha;        /* etapa 1: sem a outra placa */
+static atomic_t local;      /* bits que esta placa manda */
+static atomic_t remoto;     /* bits da outra placa (0 sem enlace) */
+static atomic_t conectado;  /* 1 enquanto chegam quadros válidos */
 
-static void isr_entrada(const struct device *dev, struct gpio_callback *cb,
-			uint32_t pinos)
+static uint8_t verificacao(const uint8_t *q)
 {
-	k_sem_give(&sem_mudanca);
+	return (uint8_t)~(q[0] + q[1] + q[2]);
 }
+
+static void isr_uart(const struct device *dev, void *dados)
+{
+	uint8_t byte;
+
+	uart_irq_update(dev);
+	while (uart_irq_rx_ready(dev) && uart_fifo_read(dev, &byte, 1) == 1) {
+		/* Fila cheia: o byte se perde, e o quadro falha na verificação */
+		(void)k_msgq_put(&fila_rx, &byte, K_NO_WAIT);
+	}
+}
+
+/* Guarda os bits da outra placa e avisa quem espera se algo mudou */
+static void atualiza(atomic_val_t bits, bool ok)
+{
+	bool mudou = atomic_set(&remoto, bits) != bits;
+	bool estava = atomic_set(&conectado, ok) != 0;
+
+	if (estava != ok) {
+		printk("%u ms | enlace %s\n", k_uptime_get_32(), ok ? "conectado" : "perdido");
+		mudou = true;
+	}
+	if (mudou) {
+		k_sem_give(&sem_mudanca);
+	}
+}
+
+static void t_enlace_rx(void *p1, void *p2, void *p3)
+{
+	uint8_t q[4] = {0};
+	int64_t ultimo_valido = 0;
+	bool avisou_papel = false;
+
+	while (1) {
+		uint8_t byte;
+
+		if (k_msgq_get(&fila_rx, &byte, K_MSEC(PERIODO_MS)) == 0) {
+			memmove(q, q + 1, 3);
+			q[3] = byte;
+
+			if (q[0] == BYTE_INICIO && (q[1] & ~BITS_VALIDOS) == 0 &&
+			    q[3] == verificacao(q)) {
+				bool dele_mestre = (q[1] & BIT_MESTRE) != 0;
+
+				if (dele_mestre != mestre) {
+					ultimo_valido = k_uptime_get();
+					atualiza(q[1] & (BIT_SINAL | BIT_NOTURNO), true);
+				} else if (!avisou_papel) {
+					/* Mesmo programa nas duas placas, ou TX ligado no próprio RX */
+					printk("%u ms | enlace: quadro com o mesmo papel desta placa\n",
+					       k_uptime_get_32());
+					avisou_papel = true;
+				}
+				memset(q, 0, sizeof(q));   /* o próximo quadro começa do zero */
+			}
+		}
+
+		if (atomic_get(&conectado) && k_uptime_get() - ultimo_valido > PRAZO_MS) {
+			atualiza(0, false);   /* estado seguro: os sinais da outra placa valem 0 */
+		}
+	}
+}
+
+static void t_enlace_tx(void *p1, void *p2, void *p3)
+{
+	uint8_t contador = 0;
+
+	while (1) {
+		uint8_t q[4] = {BYTE_INICIO, (uint8_t)atomic_get(&local), contador++, 0};
+
+		q[3] = verificacao(q);
+		for (size_t i = 0; i < sizeof(q); i++) {
+			uart_poll_out(uart, q[i]);
+		}
+		(void)k_sem_take(&sem_envio, K_MSEC(PERIODO_MS));
+	}
+}
+
+/* As duas só começam em enlace_iniciar(), e nunca na placa única */
+K_THREAD_DEFINE(id_t_enlace_rx, TAMANHO_PILHA, t_enlace_rx,
+		NULL, NULL, NULL, PRIORIDADE_ENLACE, 0, SYS_FOREVER_MS);
+K_THREAD_DEFINE(id_t_enlace_tx, TAMANHO_PILHA, t_enlace_tx,
+		NULL, NULL, NULL, PRIORIDADE_ENLACE, 0, SYS_FOREVER_MS);
 
 int enlace_iniciar(enum enlace_papel papel)
 {
-	const struct gpio_dt_spec *pinos[] = {
-		&saida, &entrada, &saida_noturno, &entrada_noturno,
-	};
-	int ret;
-
 	mestre = papel != ENLACE_ESCRAVA;
 
 	if (papel == ENLACE_UNICA) {
-		/* Etapa 1: os pinos do enlace ficam como vieram do reset (desligados) */
 		sozinha = true;
 		return 0;
 	}
 
-	for (size_t i = 0; i < ARRAY_SIZE(pinos); i++) {
-		if (!gpio_is_ready_dt(pinos[i])) {
-			return -ENODEV;
-		}
+	if (!device_is_ready(uart)) {
+		return -ENODEV;
 	}
 
 	/* Estado inicial seguro: mestre sem dar a vez, escrava parada */
-	ret = gpio_pin_configure_dt(&saida, mestre ? GPIO_OUTPUT_INACTIVE
-						   : GPIO_OUTPUT_ACTIVE);
+	atomic_set(&local, mestre ? BIT_MESTRE : BIT_SINAL);
+
+	int ret = uart_irq_callback_user_data_set(uart, isr_uart, NULL);
+
 	if (ret < 0) {
 		return ret;
 	}
+	uart_irq_rx_enable(uart);
 
-	ret = gpio_pin_configure_dt(&saida_noturno, GPIO_OUTPUT_INACTIVE);
-	if (ret < 0) {
-		return ret;
-	}
-
-	ret = gpio_pin_configure_dt(&entrada_noturno, GPIO_INPUT);
-	if (ret < 0) {
-		return ret;
-	}
-
-	ret = gpio_pin_configure_dt(&entrada, GPIO_INPUT);
-	if (ret < 0) {
-		return ret;
-	}
-
-	ret = gpio_pin_interrupt_configure_dt(&entrada, GPIO_INT_EDGE_BOTH);
-	if (ret < 0) {
-		return ret;
-	}
-
-	gpio_init_callback(&callback_entrada, isr_entrada, BIT(entrada.pin));
-	return gpio_add_callback(entrada.port, &callback_entrada);
+	k_thread_start(id_t_enlace_rx);
+	k_thread_start(id_t_enlace_tx);
+	return 0;
 }
 
 bool enlace_sou_mestre(void)
@@ -94,17 +181,27 @@ bool enlace_uma_placa(void)
 	return sozinha;
 }
 
-void enlace_publicar(bool valor)
+static void publica_bit(atomic_val_t bit, bool valor)
 {
 	if (sozinha) {
 		return;
 	}
-	gpio_pin_set_dt(&saida, valor);
+	if (valor) {
+		atomic_or(&local, bit);
+	} else {
+		atomic_and(&local, ~bit);
+	}
+	k_sem_give(&sem_envio);   /* t_enlace_tx manda assim que quem publicou esperar */
+}
+
+void enlace_publicar(bool valor)
+{
+	publica_bit(BIT_SINAL, valor);
 }
 
 bool enlace_ler(void)
 {
-	return gpio_pin_get_dt(&entrada) == 1;
+	return (atomic_get(&remoto) & BIT_SINAL) != 0;
 }
 
 int enlace_esperar(bool nivel, k_timeout_t timeout)
@@ -128,13 +225,10 @@ bool enlace_aguardar_mudanca(k_timeout_t timeout)
 
 void enlace_publicar_noturno(bool ligado)
 {
-	if (sozinha) {
-		return;
-	}
-	gpio_pin_set_dt(&saida_noturno, ligado);
+	publica_bit(BIT_NOTURNO, ligado);
 }
 
 bool enlace_ler_noturno(void)
 {
-	return gpio_pin_get_dt(&entrada_noturno) == 1;
+	return (atomic_get(&remoto) & BIT_NOTURNO) != 0;
 }

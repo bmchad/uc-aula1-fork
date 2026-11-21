@@ -2,6 +2,8 @@
 
 Documento de projeto, escrito antes do código. É a referência para a fiação e a lógica. Substitui o esboço de 16/11, em que cada placa tinha um só semáforo, e o plano de 17/11, com um fio de PTD3 para PTD3. O enunciado da atividade está em [../docs/enunciado.md](../docs/enunciado.md).
 
+> **Atualização:** os fios VEZ, PARADO e NOTURNO descritos aqui foram trocados por uma UART entre as placas (UART2, nos mesmos pinos D11 e D12). As regras do handshake da seção 5.2 continuam valendo: VEZ, PARADO e NOTURNO viraram bits de um quadro. A referência atual é o [02-arquitetura.md](../docs/02-arquitetura.md), seção 2, e o [03-projeto-componentes.md](../docs/03-projeto-componentes.md). As seções 2, 3, 6 e 7 deste documento ficam como registro do projeto com fios.
+
 ## 1. O plano
 
 - **Mesmo código nas duas placas:** as duas FRDM-KL25Z rodam o mesmo programa ao mesmo tempo.

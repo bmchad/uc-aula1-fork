@@ -40,6 +40,7 @@ FAIXAS_DUAS_PLACAS = dict(FAIXAS_UMA_PLACA)
 FAIXAS_DUAS_PLACAS[("carros", "VERMELHO")] = (4.00, 4.20)    # RF-03, com o handshake
 FAIXAS_DUAS_PLACAS[("pedestres", "VERDE")] = (4.00, 4.20)    # RF-04, acompanha o vermelho
 
+MIN_MEDIDAS = 5                  # RF-03, RF-04: pelo menos 5 ciclos
 SINCRONISMO_MAX = 0.050          # RF-05: troca do outro semáforo da mesma via
 VERDE_ENCURTADO = (1.00, 1.05)   # RF-08: toque no primeiro segundo do verde
 TOQUE_ATE_TRAVESSIA_MAX = 2.05   # RF-09
@@ -51,6 +52,7 @@ SAIDA_NOTURNO_MAX_OUTRA = 2.1    # RF-17, na outra placa
 AVISO_INTERVALO_MAX = 10.1       # RS-05: aviso a cada 10 s (mais 1%)
 
 RE_EVENTO = re.compile(r"^(\d+) ms \| (.+)$")
+SESSOES_COM_BOOT = set()   # (placa, sessao) que começam com a linha de boot no log
 
 
 @dataclass
@@ -102,6 +104,8 @@ def classifica(texto):
         return "toque", ""
     if texto in ("modo NOTURNO", "modo NORMAL"):
         return "modo", texto.split()[1]
+    if texto.startswith("enlace"):
+        return "enlace", texto[len("enlace"):].lstrip(" :")
     return "outro", texto
 
 
@@ -131,6 +135,7 @@ def le_log(caminho):
             if "Booting Zephyr" in resto:
                 sessao[placa] += 1
                 ultimo_ms.pop(placa, None)
+                SESSOES_COM_BOOT.add((placa, sessao[placa]))
                 continue
             m = RE_EVENTO.match(resto)
             if not m:
@@ -138,6 +143,7 @@ def le_log(caminho):
             ms = int(m.group(1))
             if placa in ultimo_ms and ms < ultimo_ms[placa]:
                 sessao[placa] += 1          # reiniciou sem a linha de boot
+                SESSOES_COM_BOOT.add((placa, sessao[placa]))
             ultimo_ms[placa] = ms
             tipo, valor = classifica(m.group(2))
             eventos.append(Evento(n, tpc, placa, sessao[placa], ms / 1000, tipo, valor, m.group(2)))
@@ -200,9 +206,12 @@ def monta_fases(sessoes):
 def motivo_exclusao(fase, eventos_pc, carros_por_sessao, sessoes, duas):
     """Por que a fase não entra na conferência do ciclo normal ("" se entra)."""
     carros = carros_por_sessao[(fase.placa, fase.ini.sessao)]
-    primeiro_verde = next((c for c in carros if c.valor == "VERDE"), None)
-    if fase.indice == 0 or primeiro_verde is None or fase.ini.n < primeiro_verde.n:
-        return "partida"
+    if (fase.placa, fase.ini.sessao) in SESSOES_COM_BOOT:
+        # Desde o boot, as fases até o primeiro verde dos veículos são da partida
+        primeiro_verde = next((c for c in carros if c.valor == "VERDE"), None)
+        if fase.indice == 0 or primeiro_verde is None or fase.ini.n < primeiro_verde.n:
+            return "partida"
+    # Sem o boot no log, a primeira fase começa num evento e está completa
     if fase.estado == "PISCA":
         return "pisca"
     t0, t1 = fase.ini.tpc, fase.fim.tpc
@@ -210,6 +219,8 @@ def motivo_exclusao(fase, eventos_pc, carros_por_sessao, sessoes, duas):
         return "travessia"
     if eventos_entre(eventos_pc, t0, t1, ("aviso",)):
         return "espera com aviso"
+    if eventos_entre(eventos_pc, t0, t1, ("enlace",)):
+        return "mudança no enlace"
     # Pisca ou mudança de modo no meio da fase. A entrada no modo noturno logo
     # no fim de um vermelho não conta: esse vermelho teve a duração normal.
     for e in sessoes[(fase.placa, fase.ini.sessao)]:
@@ -268,11 +279,11 @@ def analisa_tempos(rel, fases, eventos_pc, carros_por_sessao, sessoes, faixas, p
         req = "RF-03" if semaforo == "carros" else "RF-04"
         det = "; ".join(f"{s(f.dur)} s em {s(f.ini.t)} s" for f in fora[:5])
         rel.confere(req, f"{placa}: {semaforo} {estado} dentro da faixa", not fora, det)
-    poucas = sorted({p for p, _, _, v, _, _ in resultado if len(v) < 5})
+    poucas = sorted({p for p, _, _, v, _, _ in resultado if len(v) < MIN_MEDIDAS})
     if poucas:
         rel.escreve()
-        rel.escreve(f"Atenção: menos de 5 fases medidas em pelo menos um estado ({', '.join(poucas)}). "
-                    "O critério pede pelo menos 5 ciclos seguidos.")
+        rel.escreve(f"Atenção: menos de {MIN_MEDIDAS} fases medidas em pelo menos um estado ({', '.join(poucas)}). "
+                    f"O critério pede pelo menos {MIN_MEDIDAS} ciclos seguidos.")
 
 
 def analisa_via(rel, sessoes):
@@ -499,9 +510,12 @@ def analisa_noturno(rel, sessoes, eventos_pc):
 
 
 def analisa_avisos(rel, sessoes):
-    rel.secao("Avisos de espera (RS-05)")
+    rel.secao("Enlace e avisos de espera (RS-05, RS-06)")
     houve = False
     for (placa, _), evs in sessoes.items():
+        for e in (e for e in evs if e.tipo == "enlace"):
+            houve = True
+            rel.escreve(f"- {placa}: enlace {e.valor} em {s(e.t)} s (tempo da placa), {s(e.tpc)} s (PC)")
         avisos = [e for e in evs if e.tipo == "aviso"]
         if not avisos:
             continue
@@ -517,7 +531,7 @@ def analisa_avisos(rel, sessoes):
                 rel.confere("RS-05", f"{placa}: aviso \"{texto}\" pelo menos a cada {s(AVISO_INTERVALO_MAX)} s",
                             max(seguidos) <= AVISO_INTERVALO_MAX, f"maior intervalo {s(max(seguidos))} s")
     if not houve:
-        rel.escreve("Nenhum aviso de espera no log.")
+        rel.escreve("Nenhum evento do enlace nem aviso de espera no log.")
 
 
 def desenha(caminho, eventos_pc, placas):

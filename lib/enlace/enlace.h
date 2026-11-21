@@ -1,13 +1,18 @@
 /*
- * Enlace entre as duas placas do semáforo (ver docs/03-projeto-componentes.md, seção 1.4).
+ * Enlace entre as duas placas do semáforo, pela UART2
+ * (ver docs/02-arquitetura.md, seção 2, e docs/03-projeto-componentes.md, seção 3.1).
  *
- * Cada placa tem uma saída (D12) e uma entrada (D11) de handshake, ligadas em
- * cruz com a outra placa. O significado depende do papel:
- *   - mestre: saída = VEZ, entrada = PARADO da escrava;
- *   - escrava: saída = PARADO, entrada = VEZ do mestre.
+ * Cada placa manda à outra, pela UART, um quadro com o próprio estado. O
+ * quadro é reenviado a cada 50 ms e também logo que o estado muda. O
+ * significado do sinal depende do papel de quem manda:
+ *   - mestre: sinal = VEZ, e também o bit NOTURNO;
+ *   - escrava: sinal = PARADO.
  * O papel vem do programa gravado: src/mestre.c (que também é a placa única
  * da etapa 1) ou src/escrava.c.
- * O fio NOTURNO vai do D2 do mestre para o D3 da escrava.
+ *
+ * Estado seguro: sem quadro válido da outra placa há mais de 200 ms, os
+ * sinais dela valem 0 (sem vez, escrava não parada, modo normal). Um quadro
+ * só é válido com a verificação certa e com o papel oposto ao desta placa.
  */
 
 #ifndef ENLACE_H
@@ -23,10 +28,11 @@ enum enlace_papel {
 };
 
 /*
- * Configura os pinos no estado seguro: VEZ = 0 (mestre) ou PARADO = 1 (escrava).
+ * Começa no estado seguro: VEZ = 0 (mestre) ou PARADO = 1 (escrava), e
+ * NOTURNO = 0. Liga a UART e as threads de envio e recepção.
  *
- * ENLACE_UNICA: nenhum pino do enlace é configurado, a placa age como mestre
- * e as funções de publicar não fazem nada.
+ * ENLACE_UNICA: a UART não é usada, a placa age como mestre e as funções de
+ * publicar não fazem nada.
  */
 int enlace_iniciar(enum enlace_papel papel);
 
@@ -35,19 +41,19 @@ bool enlace_sou_mestre(void);
 /* true na etapa 1: a placa roda sozinha, sem handshake */
 bool enlace_uma_placa(void);
 
-/* Saída de handshake: VEZ (mestre) ou PARADO (escrava) */
+/* Sinal desta placa: VEZ (mestre) ou PARADO (escrava). Manda na hora. */
 void enlace_publicar(bool valor);
 
-/* Entrada de handshake: PARADO (no mestre) ou VEZ (na escrava) */
+/* Sinal da outra placa: PARADO (no mestre) ou VEZ (na escrava). 0 sem enlace. */
 bool enlace_ler(void);
 
-/* Espera a entrada chegar ao nível pedido. Retorna 0, ou -EAGAIN se o tempo acabou */
+/* Espera o sinal da outra placa chegar ao nível pedido. Retorna 0, ou -EAGAIN se o tempo acabou */
 int enlace_esperar(bool nivel, k_timeout_t timeout);
 
-/* Espera a entrada mudar a partir de agora. Retorna true se mudou antes do tempo acabar */
+/* Espera qualquer mudança na outra placa a partir de agora. Retorna true se mudou antes do tempo acabar */
 bool enlace_aguardar_mudanca(k_timeout_t timeout);
 
-/* Fio NOTURNO: o mestre publica, a escrava lê */
+/* Bit NOTURNO: o mestre publica, a escrava lê (0 sem enlace) */
 void enlace_publicar_noturno(bool ligado);
 bool enlace_ler_noturno(void);
 

@@ -128,10 +128,10 @@ static void mestre_dar_a_vez(void)
 		enlace_publicar(false);                          /* cancela: VEZ = 0 */
 
 		/*
-		 * Sem resposta, não dá para saber se a escrava abriu. Com o fio
-		 * PARADO em curto com o GND, o mestre lê "parada" para sempre: a
-		 * escrava pega a vez e abre sem o mestre ver. Esperar o ciclo
-		 * inteiro dela garante que ela já fechou quando o mestre reabrir.
+		 * Sem resposta, não dá para saber se a escrava abriu: o quadro dela
+		 * pode ter se perdido justamente quando ela pegou a vez. Esperar o
+		 * ciclo inteiro dela garante que ela já fechou quando o mestre
+		 * reabrir.
 		 */
 		registra("escrava nao pegou a vez: esperando o ciclo dela");
 		k_msleep(ESPERA_CANCELADA_MS);
@@ -151,7 +151,8 @@ static void mestre_esperar_liberacao(void)
 
 /*
  * Escrava, no boot: só aceita a vez depois de ver VEZ = 0 estável. Com duas
- * escravas por engano, cada uma vê o PARADO = 1 da outra e nenhuma abre.
+ * escravas por engano, cada uma descarta os quadros da outra (mesmo papel),
+ * o VEZ fica em 0 e nenhuma abre.
  */
 static void escrava_esperar_vez_zerada(void)
 {

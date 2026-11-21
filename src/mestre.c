@@ -5,7 +5,7 @@
  * vez e tem o botão do modo noturno.
  *   west build -b frdm_kl25z -d build/mestre -- -DPAPEL=mestre
  *   west flash -d build/mestre
- * Etapa 1: roda sozinho, sem fios para a outra placa.
+ * Etapa 1: roda sozinho, sem a UART para a outra placa.
  *   west build -b frdm_kl25z -d build/placa_unica -- -DPAPEL=placa_unica
  *   west flash -d build/placa_unica
  *
