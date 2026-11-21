@@ -72,7 +72,7 @@ O sistema deve controlar semáforos de dois tipos: pedestres e carros, incluindo
 | **Aluno** | Bernardo Machado |
 | **Data dos testes** | 18/11/2026 |
 | **Firmware testado** | Commit [`8ae444e`](https://github.com/bmchad/uc-aula1-fork/commit/8ae444e), com `UMA_PLACA true` em [`src/main.c`](https://github.com/bmchad/uc-aula1-fork/blob/8ae444e/src/main.c) (hoje [`src/mestre.c`](../src/mestre.c)) |
-| **Projeto** | [`src/README.md`](../src/README.md): arquitetura das duas placas, conexões (a seção 4.4 é a da etapa 1) e plano de testes |
+| **Projeto** | [`src/README.md`](../src/README.md): arquitetura das duas placas, e plano de testes. As conexões estão hoje no [03-projeto-componentes.md](03-projeto-componentes.md), e a montagem da etapa 1 é a da seção 1.5 |
 | **Evidências** | [`docs/semaforo/`](semaforo/): logs da serial, linha do tempo e o script de análise ([anexos](#anexos)) |
 | **Situação** | T0 a T4 aprovados; T5 inconclusivo; T6, T7 e T8 pendentes ([seção 6](#6-pendências)) |
 

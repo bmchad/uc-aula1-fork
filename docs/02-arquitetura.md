@@ -43,9 +43,11 @@ flowchart TB
 | `t_ped_vermelho` | `semaforo_pedestres` | 5 | Vermelho dos pedestres (D6) | `vez_ped_vermelho`; depois, `liberado` |
 | `t_ped_verde` | `semaforo_pedestres` | 5 | Verde dos pedestres (D7) | `vez_ped_verde`; depois, `encerrar` |
 | Thread do botão noturno | `modo_noturno` | 4 | — | Toque no botão. Na escrava fica bloqueada para sempre, porque a interrupção do botão não é instalada. |
+| `t_registro_travessia` | `semaforo_veiculo` | 5 | — | Toque no botão de travessia. Só registra o toque na serial (RNF-04); quem age no ciclo é a `t_carro_verde`. |
 
 - **Uma thread por luz (RNF-01):** o amarelo conta como uma luz só. Ele usa os dois pinos do LED RGB, mas é comandado só pela `t_carro_amarelo`.
-- **Prioridade do botão:** a thread do botão fica acima das threads das luzes para registrar o toque logo, mesmo com as luzes trocando.
+- **Prioridade do botão:** a thread do botão noturno fica acima das threads das luzes para registrar o toque logo, mesmo com as luzes trocando.
+- **Prioridade do registro da travessia:** a `t_registro_travessia` fica na mesma prioridade das luzes. Assim nenhuma das duas interrompe a outra no meio de uma linha da serial, e as linhas não se misturam. O custo é o registro do toque poder atrasar alguns milissegundos.
 
 ### 1.3 Sincronização dentro da placa
 
@@ -55,7 +57,7 @@ São três mecanismos, cada um com um papel:
 |---|---|---|
 | Um `k_mutex` por semáforo (`mutex_carros`, `mutex_pedestres`) | Cada thread trava o mutex do seu semáforo antes de acender a luz e só destrava depois de apagá-la. Assim, duas luzes do mesmo semáforo nunca ficam acesas juntas. | RS-02, RNF-02 |
 | Cadeia de `k_sem` | Dá a ordem entre as luzes. Cada thread, ao terminar, dá o `k_sem_give` da próxima. | RF-03, RF-04, RF-05 |
-| Interrupções só com `k_sem_give` | As três interrupções (botão de travessia, botão noturno e entrada do enlace) só acordam uma thread. Quem decide é sempre a thread. | RNF-03 |
+| Interrupções só com `k_sem_give` | As três interrupções (botão de travessia, botão noturno e entrada do enlace) só acordam threads. A do botão de travessia acorda duas: a `t_carro_verde` e a `t_registro_travessia`. Quem decide é sempre uma thread. | RNF-03 |
 
 Um terceiro mutex, `mutex_modo`, protege o pedido e o modo efetivo do modo noturno, que são lidos pelas threads das luzes e escritos pela thread do botão.
 
@@ -113,13 +115,14 @@ stateDiagram-v2
 **Travessia:** não é um modo à parte, só encurta o verde dos veículos.
 - A interrupção do botão dá `k_sem_give(&pedido_travessia)`. A `t_carro_verde` espera esse sinal depois do 1 s mínimo do verde (RF-08) e, se ele chegar, encerra o verde (RF-07).
 - No começo de cada verde, a `t_carro_verde` zera o `pedido_travessia`. Por isso um toque com a via fechada, no amarelo ou no modo noturno não tem efeito, nem agora nem depois (RF-10, RF-18).
-- O botão não tem debounce. Vários toques, ou o repique do fio, só dão vários `k_sem_give` num semáforo que conta até 1, e o efeito é o de um toque só (RF-11).
+- O botão não tem debounce no controle. Vários toques, ou o repique do fio, só dão vários `k_sem_give` num semáforo que conta até 1, e o efeito é o de um toque só (RF-11).
+- **Registro do toque:** a `t_registro_travessia` escreve `botao travessia: toque` na serial a cada toque, em qualquer fase e em qualquer modo, com o tempo do toque (RNF-04). Ela filtra o repique só para o registro: toques a menos de 0,2 s um do outro contam como um.
 - **Toques sem parar:** cada verde dura o mínimo de 1 s, e o ciclo continua (verde 1 s, amarelo 1 s, vermelho). O botão nunca trava o ciclo nem impede a travessia.
 
 **Modo noturno:**
 - **Pedido e modo efetivo:** o botão (ou o fio NOTURNO, na escrava) muda só o pedido. A `t_carro_vermelho` lê o pedido no **ponto seguro**, no fim do vermelho, e só então aplica o modo efetivo (RF-16). Assim, nenhuma fase do ciclo é interrompida.
 - **Entrada:** com o pedido ligado, a `t_carro_vermelho` encerra os pedestres, liga o modo efetivo e dá `vez_amarelo` no lugar de `vez_verde`.
-- **Pisca:** a `t_carro_amarelo` alterna o amarelo a cada 1 s (RF-13). A `t_ped_vermelho`, que espera `liberado` com prazo de 1 s, alterna o vermelho dos pedestres a cada prazo vencido (RF-14). As duas piscadas ficam em fase porque começam no mesmo instante: o vermelho dos pedestres acende logo antes de o amarelo começar (RF-15).
+- **Pisca:** a `t_carro_amarelo` alterna o amarelo a cada 1 s (RF-13). A `t_ped_vermelho`, que espera `liberado` com prazo de 1 s, alterna o vermelho dos pedestres a cada prazo vencido (RF-14). Cada troca das duas luzes vai para a serial (`carros AMARELO aceso` ou `apagado`, `pedestres VERMELHO aceso` ou `apagado`). As duas piscadas ficam em fase porque começam no mesmo instante: o vermelho dos pedestres acende logo antes de o amarelo começar (RF-15).
 - **Saída:** a `t_carro_amarelo` confere o pedido a cada 1 s. Quando ele desliga, ela desliga o modo efetivo e dá `vez_vermelho` (RF-17).
 
 ### 1.5 Papel da placa
@@ -224,14 +227,14 @@ sequenceDiagram
 | A escrava não pega a vez (reiniciou, ou o fio VEZ soltou) | Depois de 3 s (`RESPOSTA_MS`), o mestre cancela a vez, espera 5 s (`ESPERA_CANCELADA_MS`, o ciclo inteiro da escrava mais 1 s) e segue o próprio ciclo. A espera garante que, se a escrava abriu sem o mestre ver, ela já fechou. |
 | Boot | O mestre abre primeiro, assim que vê PARADO = 1. A escrava espera ver VEZ = 0 estável por 1 s e pega a vez no fim do primeiro ciclo do mestre. |
 
-**Efeito nos tempos:** o vermelho de cada via dura a vez da outra mais o handshake, que inclui os 50 ms de guarda. Por isso, com duas placas, o vermelho dos veículos e o verde dos pedestres duram de 4,00 a 4,10 s (RF-03, RF-04).
+**Efeito nos tempos:** o vermelho de cada via dura a vez da outra mais o handshake. Cada troca de vez tem duas guardas de 50 ms, uma de cada placa, mais as mensagens na serial. Por isso, com duas placas, o vermelho dos veículos e o verde dos pedestres duram cerca de 4,12 s, e o critério aceita de 4,00 a 4,20 s (RF-03, RF-04).
 
 ### 2.4 Modo noturno com duas placas
 
 - **Só o mestre tem o botão (RF-20).** As duas placas usam o mesmo modelo de pedido e modo efetivo, e só muda a origem do pedido.
 - **Entrada:** o mestre lê o pedido no próprio ponto seguro, que é depois de a escrava fechar, com VEZ = 0. Então ele liga o modo efetivo e levanta NOTURNO. A escrava, que está no vermelho esperando a vez, confere NOTURNO a cada 100 ms (`CONSULTA_MS`) e entra no pisca. As duas entram no pisca com as duas vias fechadas (RF-16).
 - **Durante o pisca:** o mestre mantém VEZ = 0. O próximo VEZ = 1 é uma vez nova para a escrava.
-- **Saída:** o mestre sai do pisca até 1 s depois do toque, baixa NOTURNO, vai para o vermelho e dá a vez. Por isso a escrava abre primeiro. A escrava confere NOTURNO a cada 1 s, dentro do pisca, então sai até 2 s depois do toque (RF-17).
+- **Saída:** o mestre sai do pisca até 1 s depois do pedido, baixa NOTURNO, vai para o vermelho e dá a vez. Por isso a escrava abre primeiro. A escrava confere NOTURNO a cada 1 s, dentro do pisca, então sai até 2 s depois do pedido (RF-17).
 - **O pisca das duas vias não é sincronizado** entre as placas, porque os requisitos não pedem isso. Em cada via, carros e pedestres piscam em fase (RF-15).
 
 ### 2.5 Falha segura

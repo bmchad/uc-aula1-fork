@@ -36,73 +36,13 @@ Documento de projeto, escrito antes do código. É a referência para a fiação
 
 ## 4. Conexões
 
-### 4.1 Em cada placa (mesma fiação nas duas)
+A fiação passou para a seção 1 do [docs/03-projeto-componentes.md](../docs/03-projeto-componentes.md), que é a referência atual dos pinos:
+- pinos de cada placa, LEDs e resistores: seções 1.1 e 1.2;
+- pinos que não devem ser usados: seção 1.3;
+- fios entre as placas: seção 1.4;
+- montagem da etapa 1 (placa única): seção 1.5.
 
-| Função | Pino | Conector | Ligação |
-|---|---|---|---|
-| Carros: vermelho | PTB18 | (LED RGB da placa) | Já ligado na placa |
-| Carros: verde | PTB19 | (LED RGB da placa) | Já ligado na placa |
-| Carros: amarelo | PTB18 + PTB19 | — | Os dois acesos juntos |
-| Pedestres: vermelho | PTC8 | D6 | D6 → resistor 220 Ω → perna longa (anodo) do LED vermelho; perna curta (catodo) → GND |
-| Pedestres: verde | PTC9 | D7 | D7 → resistor 220 Ω → perna longa do LED verde; perna curta → GND |
-| Botão de travessia | PTD0 | D10 | Encostar o fio do D10 no GND (pull-up interno) |
-| Botão do modo noturno | PTD5 | D9 | **Só no mestre.** Encostar o fio do D9 no GND (pull-up interno). Já configurado em `frdm_kl25z.overlay` e `lib/modo_noturno/`. |
-| Papel da placa | — | — | Não usa pino: vem do programa gravado, `mestre` ou `escrava` (seção 5.5). |
-
-- **Polaridade:** os LEDs avulsos acendem em **nível alto** (pino → resistor → LED → GND). O RGB da placa acende em **nível baixo**. O código usa a polaridade definida no devicetree para cada LED, então nos dois casos "1" quer dizer aceso.
-- **Resistor dos LEDs: 220 Ω,** o que está montado. Pela conta, a corrente fica em até ~6,4 mA para um LED vermelho (~1,9 V) e ~5,5 mA para um verde comum (~2,1 V). O PTC8 e o PTC9 são pinos de corrente normal: o datasheet da KL25Z garante a tensão de saída até 5 mA, e o limite absoluto é de 25 mA por pino. Acima de 5 mA a tensão no pino cai alguns décimos de volt, o que também segura a corrente. **Não use menos de 220 Ω.** Um verde do tipo de 3 V acende mais fraco, mas acende.
-
-### 4.2 Entre as placas
-
-| Fio | De | Para | Sinal | Significado |
-|---|---|---|---|---|
-| 1 | GND | GND | — | Referência comum. **Obrigatório:** sem ele, os níveis dos outros fios não têm significado. |
-| 2 | D12 (PTD3) do **mestre** | D11 (PTD2) da **escrava** | VEZ | 1 = o mestre está com os carros parados e a vez é da escrava |
-| 3 | D12 (PTD3) da **escrava** | D11 (PTD2) do **mestre** | PARADO | 1 = a escrava está com os carros parados |
-| 4 | D2 (PTD4) do **mestre** | D3 (PTA12) da **escrava** | NOTURNO | 1 = modo noturno |
-
-- **Proteção:** um resistor de **1 kΩ em série** em cada fio de sinal (fios 2, 3 e 4).
-- **Sinais ativos em nível baixo:** o "1" da tabela é o fio em **0 V**, e o "0" é o fio em 3,3 V. Cada entrada tem pull-up interno, então fio solto lê 3,3 V, que é 0 lógico, e 0 nunca libera nenhuma rua (seção 6).
-- **Por que não pull-down:** a primeira versão usava sinais ativos em nível alto com pull-down, e no teste o mestre sem escrava abriu como se ela estivesse parada. O diagnóstico mostrou que a KL25Z não tem pull-down interno nesses pinos: pedindo pull-down no PTD2, o registrador PCR continua `0x107`, com o bit PS fixo em 1 (pull-up). Fio solto lia 1, e com o fio PARADO solto as duas ruas podiam abrir juntas.
-- **Fios 2 e 3:** são a mesma ligação nos dois sentidos (D12 de uma placa no D11 da outra). Só o fio 4 tem direção fixa. Se o papel das placas for trocado, é preciso inverter só esse fio.
-
-### 4.3 Pinos que não devem ser usados
-
-| Conector | Pino | Motivo |
-|---|---|---|
-| D0, D1 | PTA1, PTA2 | Console serial (UART0) |
-| D4 | PTA4 | É o NMI. Se estiver em 0 no reset, a placa trava. |
-| D13 | PTD1 | LED azul da placa |
-
-As entradas que precisam de interrupção ficam nas portas A e D (D9, D10, D11 e D3). Na KL25Z, só essas portas geram interrupção por pino.
-
-### 4.4 Etapa 1: uma placa só
-
-Na etapa 1 o mestre roda sozinho, compilado com `west build -b frdm_kl25z -d build/placa_unica -- -DPAPEL=placa_unica` e gravado com `west flash -d build/placa_unica`. Esse papel compila o `src/mestre.c` com `UMA_PLACA=1`. Os fios entre placas (seção 4.2) não são usados, e os pinos deles ficam desligados. As cinco threads e os dois mutexes são os mesmos da etapa 2. Só o vermelho dos carros muda: sem a outra placa para esperar, ele dura 4 s fixos.
-
-| O que | Ligação | Obrigatório? |
-|---|---|---|
-| USB | Conector **SDA** da placa (gravação e serial) | Sim |
-| LED verde dos pedestres | D7 → resistor de 220 Ω → perna longa (anodo) do LED; perna curta (catodo) → GND | Sim |
-| LED vermelho dos pedestres | D6 → resistor de 220 Ω → perna longa do LED; perna curta → GND | Não. Sem ele, o vermelho dos pedestres aparece só na serial. |
-| Botão de travessia | Um fio no D10; para apertar, encoste a outra ponta no GND | Não |
-| Botão do modo noturno | Um fio no D9; para apertar, encoste a outra ponta no GND | Não |
-
-- **GND:** o pino ao lado do D13, no mesmo conector do D8 ao D13, ou qualquer GND do conector de alimentação.
-- **Com um LED só, use o verde no D7:** ele mostra direto a regra de segurança, porque o verde dos pedestres só pode acender com o LED RGB da placa no vermelho.
-- **Monte com o USB desligado.** Confira a perna longa do LED do lado do resistor: invertido, ele não acende, mas não queima.
-
-**O que deve acontecer** (ciclo de 8 s, começando no reset):
-
-| Tempo | LED RGB (carros) | LED do D7 (pedestres, verde) | Serial |
-|---|---|---|---|
-| 0 a 4 s | vermelho | aceso | `carros VERMELHO`, `pedestres VERDE` |
-| 4 a 7 s | verde | apagado | `pedestres VERMELHO`, `carros VERDE` |
-| 7 a 8 s | amarelo (vermelho + verde) | apagado | `carros AMARELO` |
-
-- **Travessia:** com o verde dos carros aceso há mais de 1 s, encostar o D10 no GND encerra o verde na hora (`travessia pedida: verde encurtado`). Os carros passam pelo amarelo e o LED do D7 acende.
-- **Modo noturno:** um toque do D9 no GND pede o modo (`botao noturno: pedido NOTURNO`). A placa termina o ciclo até o fim do vermelho, o que leva até 8 s. Depois o LED RGB pisca o amarelo, 1 s aceso e 1 s apagado. O LED do D7 fica apagado, e o vermelho dos pedestres pisca no D6. Outro toque sai do modo: os carros vão para o vermelho e os pedestres, para o verde.
-- **Para a etapa 2:** compile e grave o mestre com `-DPAPEL=mestre` e a escrava com `-DPAPEL=escrava` (seção 5.5), e monte a fiação das seções 4.1 e 4.2.
+O comportamento esperado em cada etapa está no [plano de testes](../tests/plano-testes.md).
 
 ## 5. Lógica
 
@@ -172,10 +112,10 @@ Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o ve
 | `lib/modo_noturno` | Separa o **pedido** (botão no mestre, fio NOTURNO na escrava) do **modo efetivo**, que só muda no ponto seguro | `modo_noturno_iniciar`, `modo_noturno_pedido`, `modo_noturno_aplicar`, `modo_noturno_ativo` |
 | `lib/semaforo_pedestres` | Threads do vermelho e do verde dos pedestres, com `mutex_pedestres` | `semaforo_pedestres_iniciar`, `semaforo_pedestres_liberar`, `semaforo_pedestres_encerrar` |
 | `lib/semaforo_veiculo` | Threads do verde, do amarelo e do vermelho dos carros, com `mutex_carros`; handshake e botão de travessia | `semaforo_veiculo_iniciar` |
-| `src/mestre.c` | Inicia as quatro bibliotecas, nesta ordem, como mestre. Com `-DPAPEL=mestre` é a etapa 2; com `-DPAPEL=placa_unica`, o `CMakeLists.txt` define `UMA_PLACA=1` para a etapa 1 (seção 4.4). | — |
+| `src/mestre.c` | Inicia as quatro bibliotecas, nesta ordem, como mestre. Com `-DPAPEL=mestre` é a etapa 2; com `-DPAPEL=placa_unica`, o `CMakeLists.txt` define `UMA_PLACA=1` para a etapa 1 (seção 1.5 do [03-projeto-componentes.md](../docs/03-projeto-componentes.md)). | — |
 | `src/escrava.c` | Inicia as quatro bibliotecas como escrava. A lógica da escrava fica em `lib/semaforo_veiculo`. | — |
 
-- **Gravação:** o papel é escolhido pela variável `PAPEL` do `CMakeLists.txt`, com uma pasta de build por papel: `west build -b frdm_kl25z -d build/mestre -- -DPAPEL=mestre` e `west build -b frdm_kl25z -d build/escrava -- -DPAPEL=escrava`, e depois `west flash -d build/mestre` ou `west flash -d build/escrava`. Para a etapa 1, `-DPAPEL=placa_unica`. Sem `-DPAPEL`, o papel é o mestre. O upload não escolhe a placa, então, na hora de gravar, deixe só uma placa no USB do PC. Os fios entre as placas (seção 4.2) podem ficar ligados.
+- **Gravação:** o papel é escolhido pela variável `PAPEL` do `CMakeLists.txt`, com uma pasta de build por papel: `west build -b frdm_kl25z -d build/mestre -- -DPAPEL=mestre` e `west build -b frdm_kl25z -d build/escrava -- -DPAPEL=escrava`, e depois `west flash -d build/mestre` ou `west flash -d build/escrava`. Para a etapa 1, `-DPAPEL=placa_unica`. Sem `-DPAPEL`, o papel é o mestre. O upload não escolhe a placa, então, na hora de gravar, deixe só uma placa no USB do PC. Os fios entre as placas (seção 1.4 do [03-projeto-componentes.md](../docs/03-projeto-componentes.md)) podem ficar ligados.
 
 - **Pinos:** estão todos em `frdm_kl25z.overlay`, na raiz do projeto. O Zephyr aplica esse arquivo sozinho porque o nome dele é o da placa. A porta C, dos LEDs de pedestres, é habilitada lá.
 - **Serial (115200 bps):** cada troca de luz sai como `tempo ms | carros VERDE` ou `tempo ms | pedestres VERMELHO`. Com a serial das duas placas gravada, dá para conferir que as ruas nunca abriram juntas.
@@ -199,7 +139,7 @@ Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha pisca
 ## 7. Pontos de teste que esta arquitetura cria (modelo V)
 
 - **Unitário (uma placa):**
-  - **Etapa 1 (placa única):** `-DPAPEL=placa_unica` e a fiação da seção 4.4. Testa as cinco threads, os dois mutexes e a sincronia entre carros e pedestres da mesma placa, sem o handshake.
+  - **Etapa 1 (placa única):** `-DPAPEL=placa_unica` e a montagem da seção 1.5 do [03-projeto-componentes.md](../docs/03-projeto-componentes.md). Testa as cinco threads, os dois mutexes e a sincronia entre carros e pedestres da mesma placa, sem o handshake.
   - **Escrava sem mestre:** a `escrava` gravada numa placa sozinha. Os carros devem ficar no vermelho para sempre, com os pedestres no verde.
   - **Mestre sem escrava, ou fio PARADO em curto:** `-DPAPEL=mestre` e o D11 ligado ao **GND** por um resistor de 1 kΩ. Como os sinais são ativos em nível baixo, isso simula uma escrava sempre parada. Testa o cancelamento da vez e a espera de segurança: o vermelho dura os 3 s do prazo mais os 5 s da espera, com o aviso "escrava nao pegou a vez: esperando o ciclo dela".
   - Tempos de cada luz.
@@ -220,4 +160,4 @@ Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha pisca
 
 1. **Leitura do plano:** confirmar com o professor a ideia de duas ruas, por causa do enunciado (seção 1).
 2. **Pinos PTB18 e PTB19:** conferir na placa que eles não estão em nenhum conector. Não muda a solução, porque mesmo que estivessem, ligar saída com saída continuaria proibido (problema 2).
-3. **Resistor dos LEDs:** resolvido. A montagem usa 220 Ω (seção 4.1).
+3. **Resistor dos LEDs:** resolvido. A montagem usa 220 Ω (seção 1.2 do [03-projeto-componentes.md](../docs/03-projeto-componentes.md)).

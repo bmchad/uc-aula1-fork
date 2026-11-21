@@ -39,6 +39,9 @@
 #define AVISO_MS       10000   /* intervalo entre avisos de espera longa */
 #define ESTAVEL_MS     1000    /* escrava: VEZ em 0 por esse tempo depois do boot */
 #define CONSULTA_MS    100     /* escrava: intervalo para conferir o modo noturno */
+#define TOQUE_BLOQUEIO_MS 200  /* registro: toques mais próximos que isso contam como um */
+#define TOQUE_SOLTO_MS    20   /* registro: intervalo para conferir se o botão foi solto */
+#define TOQUE_REPIQUE_MS  50   /* registro: espera depois de soltar, para o repique passar */
 #define TAMANHO_PILHA  768
 #define PRIORIDADE_LED 5
 
@@ -55,6 +58,7 @@ K_SEM_DEFINE(vez_verde, 0, 1);
 K_SEM_DEFINE(vez_amarelo, 0, 1);
 K_SEM_DEFINE(vez_vermelho, 0, 1);
 K_SEM_DEFINE(pedido_travessia, 0, 1);   /* ISR do botão -> t_carro_verde */
+K_SEM_DEFINE(toque_travessia, 0, 1);    /* ISR do botão -> t_registro_travessia */
 
 static bool mestre;
 static bool uma_placa;       /* etapa 1: sem handshake */
@@ -66,13 +70,39 @@ static void registra(const char *evento)
 }
 
 /*
- * Sem debounce: encurtar o verde atual pode acontecer várias vezes sem
- * efeito extra, e o verde descarta toques antigos ao começar.
+ * Sem debounce no controle: encurtar o verde atual pode acontecer várias vezes
+ * sem efeito extra, e o verde descarta toques antigos ao começar. O segundo
+ * k_sem é só para o registro na serial, que tem a própria filtragem.
  */
 static void isr_travessia(const struct device *dev, struct gpio_callback *cb,
 			  uint32_t pinos)
 {
 	k_sem_give(&pedido_travessia);
+	k_sem_give(&toque_travessia);
+}
+
+/*
+ * Registra cada toque no botão de travessia, em qualquer fase e em qualquer
+ * modo (RNF-04), com o tempo do toque. Não muda o ciclo: quem age é a
+ * t_carro_verde. O repique do fio é filtrado só aqui:
+ *   1. registra o toque com o tempo em que acordou;
+ *   2. ignora novas bordas por TOQUE_BLOQUEIO_MS;
+ *   3. espera o botão ser solto e mais TOQUE_REPIQUE_MS;
+ *   4. descarta as bordas desse intervalo.
+ */
+static void t_registro_travessia(void *p1, void *p2, void *p3)
+{
+	while (1) {
+		k_sem_take(&toque_travessia, K_FOREVER);
+		printk("%u ms | botao travessia: toque\n", k_uptime_get_32());
+
+		k_msleep(TOQUE_BLOQUEIO_MS);
+		while (gpio_pin_get_dt(&botao_travessia) == 1) {
+			k_msleep(TOQUE_SOLTO_MS);
+		}
+		k_msleep(TOQUE_REPIQUE_MS);
+		k_sem_reset(&toque_travessia);
+	}
 }
 
 static void acende_amarelo(bool aceso)
@@ -203,6 +233,8 @@ static void t_carro_amarelo(void *p1, void *p2, void *p3)
 			while (modo_noturno_pedido()) {
 				aceso = !aceso;
 				acende_amarelo(aceso);
+				/* Cada troca vai para a serial: é a evidência do RF-13 */
+				registra(aceso ? "AMARELO aceso" : "AMARELO apagado");
 				k_msleep(PISCA_MS);
 			}
 			modo_noturno_aplicar(false);
@@ -274,6 +306,13 @@ K_THREAD_DEFINE(id_t_carro_verde, TAMANHO_PILHA, t_carro_verde,
 K_THREAD_DEFINE(id_t_carro_amarelo, TAMANHO_PILHA, t_carro_amarelo,
 		NULL, NULL, NULL, PRIORIDADE_LED, 0, 0);
 K_THREAD_DEFINE(id_t_carro_vermelho, TAMANHO_PILHA, t_carro_vermelho,
+		NULL, NULL, NULL, PRIORIDADE_LED, 0, 0);
+/*
+ * Mesma prioridade das luzes: uma não interrompe a outra no meio de um printk,
+ * então as linhas da serial não se misturam. O custo é o registro do toque
+ * poder atrasar alguns ms se uma luz estiver imprimindo.
+ */
+K_THREAD_DEFINE(id_t_registro_travessia, TAMANHO_PILHA, t_registro_travessia,
 		NULL, NULL, NULL, PRIORIDADE_LED, 0, 0);
 
 int semaforo_veiculo_iniciar(void)

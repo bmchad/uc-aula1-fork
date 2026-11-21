@@ -45,8 +45,15 @@ static void t_ped_vermelho(void *p1, void *p2, void *p3)
 
 		while (k_sem_take(&liberado, K_MSEC(PISCA_MS)) != 0) {
 			/* No modo noturno o vermelho pisca; fora dele fica aceso */
-			aceso = modo_noturno_ativo() ? !aceso : true;
-			gpio_pin_set_dt(&led_vermelho, aceso);
+			bool novo = modo_noturno_ativo() ? !aceso : true;
+
+			if (novo != aceso) {
+				aceso = novo;
+				gpio_pin_set_dt(&led_vermelho, aceso);
+				/* Cada troca vai para a serial: é a evidência do RF-14 */
+				printk("%u ms | pedestres VERMELHO %s\n", k_uptime_get_32(),
+				       aceso ? "aceso" : "apagado");
+			}
 		}
 
 		gpio_pin_set_dt(&led_vermelho, 0);

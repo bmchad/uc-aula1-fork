@@ -1,5 +1,5 @@
 /*
- * Enlace entre as duas placas do semáforo (ver src/README.md, seção 4.2).
+ * Enlace entre as duas placas do semáforo (ver docs/03-projeto-componentes.md, seção 1.4).
  *
  * Cada placa tem uma saída (D12) e uma entrada (D11) de handshake, ligadas em
  * cruz com a outra placa. O significado depende do papel:
