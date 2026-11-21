@@ -2,9 +2,12 @@
  * Placa MESTRE: semáforo de carros e pedestres.
  *
  * Etapa 2: roda com a escrava (src/escrava.c). O mestre decide de quem é a
- * vez e tem o botão do modo noturno. Gravar: pio run -e mestre -t upload
+ * vez e tem o botão do modo noturno.
+ *   west build -b frdm_kl25z -d build/mestre -- -DPAPEL=mestre
+ *   west flash -d build/mestre
  * Etapa 1: roda sozinho, sem fios para a outra placa.
- *          Gravar: pio run -e placa_unica -t upload
+ *   west build -b frdm_kl25z -d build/placa_unica -- -DPAPEL=placa_unica
+ *   west flash -d build/placa_unica
  *
  * A lógica fica nas bibliotecas de lib/, as mesmas nas duas placas; este
  * arquivo só escolhe o papel. Projeto e fiação: src/README.md.
@@ -19,9 +22,9 @@
 #include "semaforo_veiculo.h"
 
 /*
- * Vem do platformio.ini, e não deve ser editado aqui:
- *   1 no ambiente placa_unica: etapa 1, a placa roda sozinha;
- *   0 no ambiente mestre: etapa 2, com a escrava.
+ * Vem do CMakeLists.txt, e não deve ser editado aqui:
+ *   1 com -DPAPEL=placa_unica: etapa 1, a placa roda sozinha;
+ *   0 com -DPAPEL=mestre: etapa 2, com a escrava.
  * Uma placa gravada como placa_unica e ligada à escrava nunca dá a vez, e a
  * escrava fica com os carros no vermelho.
  */

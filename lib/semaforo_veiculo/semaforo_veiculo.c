@@ -138,7 +138,15 @@ static void escrava_esperar_vez_zerada(void)
  */
 static bool escrava_esperar_a_vez(void)
 {
+	/* No ciclo normal a espera dura uns 4 s; passar de AVISO_MS é falha */
+	k_timepoint_t aviso = sys_timepoint_calc(K_MSEC(AVISO_MS));
+
 	while (!modo_noturno_pedido()) {
+		if (sys_timepoint_expired(aviso)) {
+			registra("aguardando a vez do mestre");
+			aviso = sys_timepoint_calc(K_MSEC(AVISO_MS));
+		}
+
 		if (!enlace_ler()) {
 			vez_consumida = false;
 		} else if (!vez_consumida) {

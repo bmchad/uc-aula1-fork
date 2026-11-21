@@ -1,14 +1,15 @@
 /*
  * Placa ESCRAVA: semáforo de carros e pedestres.
  *
- * Só abre os próprios carros quando o mestre (src/mestre.c, gravado com o
- * ambiente mestre) dá a vez, e entra no modo noturno pelo fio NOTURNO. Sem o
+ * Só abre os próprios carros quando o mestre (src/mestre.c, compilado com
+ * -DPAPEL=mestre) dá a vez, e entra no modo noturno pelo fio NOTURNO. Sem o
  * mestre, fica com os carros no vermelho: falha segura.
  *
  * A lógica da escrava (esperar a vez, conferir de novo antes de abrir,
  * avisar quando fechou) fica em lib/semaforo_veiculo, a mesma biblioteca do
  * mestre; este arquivo só escolhe o papel. Projeto e fiação: src/README.md.
- * Gravar: pio run -e escrava -t upload
+ *   west build -b frdm_kl25z -d build/escrava -- -DPAPEL=escrava
+ *   west flash -d build/escrava
  */
 
 #include <zephyr/kernel.h>

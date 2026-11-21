@@ -1,6 +1,6 @@
 # Projeto: semáforos de carros e pedestres em duas placas (Aula 07)
 
-Documento de projeto, escrito antes do código. É a referência para a fiação e a lógica. Substitui o esboço de 16/11, em que cada placa tinha um só semáforo, e o plano de 17/11, com um fio de PTD3 para PTD3. O enunciado da atividade está em [../README.md](../README.md).
+Documento de projeto, escrito antes do código. É a referência para a fiação e a lógica. Substitui o esboço de 16/11, em que cada placa tinha um só semáforo, e o plano de 17/11, com um fio de PTD3 para PTD3. O enunciado da atividade está em [../docs/enunciado.md](../docs/enunciado.md).
 
 ## 1. O plano
 
@@ -46,7 +46,7 @@ Documento de projeto, escrito antes do código. É a referência para a fiação
 | Pedestres: vermelho | PTC8 | D6 | D6 → resistor 220 Ω → perna longa (anodo) do LED vermelho; perna curta (catodo) → GND |
 | Pedestres: verde | PTC9 | D7 | D7 → resistor 220 Ω → perna longa do LED verde; perna curta → GND |
 | Botão de travessia | PTD0 | D10 | Encostar o fio do D10 no GND (pull-up interno) |
-| Botão do modo noturno | PTD5 | D9 | **Só no mestre.** Encostar o fio do D9 no GND (pull-up interno). Já configurado em `zephyr/app.overlay` e `lib/modo_noturno/`. |
+| Botão do modo noturno | PTD5 | D9 | **Só no mestre.** Encostar o fio do D9 no GND (pull-up interno). Já configurado em `frdm_kl25z.overlay` e `lib/modo_noturno/`. |
 | Papel da placa | — | — | Não usa pino: vem do programa gravado, `mestre` ou `escrava` (seção 5.5). |
 
 - **Polaridade:** os LEDs avulsos acendem em **nível alto** (pino → resistor → LED → GND). O RGB da placa acende em **nível baixo**. O código usa a polaridade definida no devicetree para cada LED, então nos dois casos "1" quer dizer aceso.
@@ -78,7 +78,7 @@ As entradas que precisam de interrupção ficam nas portas A e D (D9, D10, D11 e
 
 ### 4.4 Etapa 1: uma placa só
 
-Na etapa 1 o mestre roda sozinho, gravado com `pio run -e placa_unica -t upload`. Esse ambiente compila o `src/mestre.c` com `UMA_PLACA=1`. Os fios entre placas (seção 4.2) não são usados, e os pinos deles ficam desligados. As cinco threads e os dois mutexes são os mesmos da etapa 2. Só o vermelho dos carros muda: sem a outra placa para esperar, ele dura 4 s fixos.
+Na etapa 1 o mestre roda sozinho, compilado com `west build -b frdm_kl25z -d build/placa_unica -- -DPAPEL=placa_unica` e gravado com `west flash -d build/placa_unica`. Esse papel compila o `src/mestre.c` com `UMA_PLACA=1`. Os fios entre placas (seção 4.2) não são usados, e os pinos deles ficam desligados. As cinco threads e os dois mutexes são os mesmos da etapa 2. Só o vermelho dos carros muda: sem a outra placa para esperar, ele dura 4 s fixos.
 
 | O que | Ligação | Obrigatório? |
 |---|---|---|
@@ -102,7 +102,7 @@ Na etapa 1 o mestre roda sozinho, gravado com `pio run -e placa_unica -t upload`
 
 - **Travessia:** com o verde dos carros aceso há mais de 1 s, encostar o D10 no GND encerra o verde na hora (`travessia pedida: verde encurtado`). Os carros passam pelo amarelo e o LED do D7 acende.
 - **Modo noturno:** um toque do D9 no GND pede o modo (`botao noturno: pedido NOTURNO`). A placa termina o ciclo até o fim do vermelho, o que leva até 8 s. Depois o LED RGB pisca o amarelo, 1 s aceso e 1 s apagado. O LED do D7 fica apagado, e o vermelho dos pedestres pisca no D6. Outro toque sai do modo: os carros vão para o vermelho e os pedestres, para o verde.
-- **Para a etapa 2:** grave o mestre com `pio run -e mestre -t upload` e a escrava com `pio run -e escrava -t upload`, e monte a fiação das seções 4.1 e 4.2.
+- **Para a etapa 2:** compile e grave o mestre com `-DPAPEL=mestre` e a escrava com `-DPAPEL=escrava` (seção 5.5), e monte a fiação das seções 4.1 e 4.2.
 
 ## 5. Lógica
 
@@ -172,12 +172,12 @@ Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o ve
 | `lib/modo_noturno` | Separa o **pedido** (botão no mestre, fio NOTURNO na escrava) do **modo efetivo**, que só muda no ponto seguro | `modo_noturno_iniciar`, `modo_noturno_pedido`, `modo_noturno_aplicar`, `modo_noturno_ativo` |
 | `lib/semaforo_pedestres` | Threads do vermelho e do verde dos pedestres, com `mutex_pedestres` | `semaforo_pedestres_iniciar`, `semaforo_pedestres_liberar`, `semaforo_pedestres_encerrar` |
 | `lib/semaforo_veiculo` | Threads do verde, do amarelo e do vermelho dos carros, com `mutex_carros`; handshake e botão de travessia | `semaforo_veiculo_iniciar` |
-| `src/mestre.c` | Inicia as quatro bibliotecas, nesta ordem, como mestre. O ambiente `mestre` é a etapa 2; o ambiente `placa_unica` define `UMA_PLACA=1` para a etapa 1 (seção 4.4). | — |
+| `src/mestre.c` | Inicia as quatro bibliotecas, nesta ordem, como mestre. Com `-DPAPEL=mestre` é a etapa 2; com `-DPAPEL=placa_unica`, o `CMakeLists.txt` define `UMA_PLACA=1` para a etapa 1 (seção 4.4). | — |
 | `src/escrava.c` | Inicia as quatro bibliotecas como escrava. A lógica da escrava fica em `lib/semaforo_veiculo`. | — |
 
-- **Gravação:** há um ambiente do PlatformIO por placa, e cada um compila só o seu arquivo: `pio run -e mestre -t upload` e `pio run -e escrava -t upload`. Para a etapa 1, `pio run -e placa_unica -t upload`. Sem `-e`, só o mestre é gravado (`default_envs`). O upload não escolhe a placa, então, na hora de gravar, deixe só uma placa no USB do PC. Os fios entre as placas (seção 4.2) podem ficar ligados.
+- **Gravação:** o papel é escolhido pela variável `PAPEL` do `CMakeLists.txt`, com uma pasta de build por papel: `west build -b frdm_kl25z -d build/mestre -- -DPAPEL=mestre` e `west build -b frdm_kl25z -d build/escrava -- -DPAPEL=escrava`, e depois `west flash -d build/mestre` ou `west flash -d build/escrava`. Para a etapa 1, `-DPAPEL=placa_unica`. Sem `-DPAPEL`, o papel é o mestre. O upload não escolhe a placa, então, na hora de gravar, deixe só uma placa no USB do PC. Os fios entre as placas (seção 4.2) podem ficar ligados.
 
-- **Pinos:** estão todos em `zephyr/app.overlay`. A porta C, dos LEDs de pedestres, é habilitada lá.
+- **Pinos:** estão todos em `frdm_kl25z.overlay`, na raiz do projeto. O Zephyr aplica esse arquivo sozinho porque o nome dele é o da placa. A porta C, dos LEDs de pedestres, é habilitada lá.
 - **Serial (115200 bps):** cada troca de luz sai como `tempo ms | carros VERDE` ou `tempo ms | pedestres VERMELHO`. Com a serial das duas placas gravada, dá para conferir que as ruas nunca abriram juntas.
 
 ## 6. Falha segura
@@ -191,7 +191,7 @@ Os tempos do enunciado fecham sozinhos. O vermelho de cada placa (4 s) dura o ve
 | Uma placa reseta no meio do ciclo | Ela volta fechada. Pelas regras do handshake, a outra fecha ao fim da sua fase e espera. |
 | `mestre` gravado nas duas placas | Cada uma lê o VEZ da outra, que é 0, como PARADO = 0. **Nenhuma abre.** |
 | `escrava` gravada nas duas placas | Se as duas ligarem juntas, cada uma vê o PARADO da outra sempre em 1, nunca vê VEZ em 0, e **nenhuma abre**. Se uma ligar bem depois da outra, elas podem se revezar, porque cada uma só abre quando a outra acabou de fechar. **Em nenhum caso as duas abrem juntas.** |
-| Mestre gravado como `placa_unica` e ligado à escrava | Ele não configura os pinos do enlace, e o D11 da escrava lê 0 lógico pelo pull-up. **A escrava nunca abre**, e o mestre roda o próprio ciclo. A escrava não avisa nada na serial: se a escrava nunca abrir, confira primeiro se o mestre foi gravado com o ambiente `mestre`. |
+| Mestre gravado como `placa_unica` e ligado à escrava | Ele não configura os pinos do enlace, e o D11 da escrava lê 0 lógico pelo pull-up. **A escrava nunca abre**, e o mestre roda o próprio ciclo. A escrava avisa `aguardando a vez do mestre` na serial a cada 10 s: se ela nunca abrir, confira primeiro se o mestre foi compilado com `-DPAPEL=mestre`. |
 | Fio GND solto | Os níveis ficam indefinidos. Por isso o fio de GND é obrigatório e deve ser o primeiro a ser ligado. |
 
 Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha piscando o vermelho dos carros.
@@ -199,9 +199,9 @@ Proposta: se a confirmação não chegar em 10 s, a placa sinaliza a falha pisca
 ## 7. Pontos de teste que esta arquitetura cria (modelo V)
 
 - **Unitário (uma placa):**
-  - **Etapa 1 (placa única):** ambiente `placa_unica` e a fiação da seção 4.4. Testa as cinco threads, os dois mutexes e a sincronia entre carros e pedestres da mesma placa, sem o handshake.
+  - **Etapa 1 (placa única):** `-DPAPEL=placa_unica` e a fiação da seção 4.4. Testa as cinco threads, os dois mutexes e a sincronia entre carros e pedestres da mesma placa, sem o handshake.
   - **Escrava sem mestre:** a `escrava` gravada numa placa sozinha. Os carros devem ficar no vermelho para sempre, com os pedestres no verde.
-  - **Mestre sem escrava, ou fio PARADO em curto:** ambiente `mestre` e o D11 ligado ao **GND** por um resistor de 1 kΩ. Como os sinais são ativos em nível baixo, isso simula uma escrava sempre parada. Testa o cancelamento da vez e a espera de segurança: o vermelho dura os 3 s do prazo mais os 5 s da espera, com o aviso "escrava nao pegou a vez: esperando o ciclo dela".
+  - **Mestre sem escrava, ou fio PARADO em curto:** `-DPAPEL=mestre` e o D11 ligado ao **GND** por um resistor de 1 kΩ. Como os sinais são ativos em nível baixo, isso simula uma escrava sempre parada. Testa o cancelamento da vez e a espera de segurança: o vermelho dura os 3 s do prazo mais os 5 s da espera, com o aviso "escrava nao pegou a vez: esperando o ciclo dela".
   - Tempos de cada luz.
   - Nunca duas luzes do mesmo semáforo acesas, contando o amarelo como uma luz só.
   - Debounce dos botões.

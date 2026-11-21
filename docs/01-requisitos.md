@@ -72,7 +72,7 @@ São as regras que nunca podem ser quebradas, em nenhum modo e com qualquer falh
 |---|---|---|---|
 | RNF-04 | Cada placa deve registrar na serial (115200 bps) toda troca de luz, toda mudança de modo e todo toque de botão, com o tempo da placa em ms. Nos ensaios com duas placas, as duas seriais devem ser gravadas no mesmo PC, que acrescenta o próprio tempo a cada linha. O tempo da placa mede as durações dentro dela; o tempo do PC decide a ordem entre as placas, porque os relógios delas partem de instantes diferentes e se afastam. | Enunciado, Req. de Projeto 4 (evidências) | Num ciclo completo, cada troca de luz aparece uma vez na serial, no formato `tempo ms \| evento`. Com duas placas, cada linha das duas seriais tem também o tempo do PC |
 | RNF-05 | O registro na serial não deve atrasar o ciclo além da tolerância de RF-03 e RF-04. | (dupla) | Mesmo ensaio de RF-03 e RF-04, com o registro ligado |
-| RNF-06 | Deve haver um modo de placa única, que roda uma via (os dois semáforos dela) numa só placa, para testar antes de ligar a segunda. | (dupla) | O ambiente `placa_unica` compila e cumpre RF-01 a RF-18 para uma via |
+| RNF-06 | Deve haver um modo de placa única, que roda uma via (os dois semáforos dela) numa só placa, para testar antes de ligar a segunda. | (dupla) | O firmware compila com `-DPAPEL=placa_unica` e cumpre RF-01 a RF-18 para uma via |
 
 ### 3.3 Processo
 
@@ -83,7 +83,7 @@ São as regras que nunca podem ser quebradas, em nenhum modo e com qualquer falh
 
 ## 4. Rastreabilidade
 
-Os testes de aceitação (TA) serão detalhados em [tests/plano-testes.md](../tests/plano-testes.md), com pré-condição, etapas e pós-condição. A última coluna aponta os testes da etapa 1 já registrados no [relatório do README](../README.md#relatório-de-testes-etapa-1-do-semáforo-uma-placa).
+Os testes de aceitação (TA) serão detalhados em [tests/plano-testes.md](../tests/plano-testes.md), com pré-condição, etapas e pós-condição. A última coluna aponta os testes da etapa 1 já registrados no [relatório da etapa 1](enunciado.md#relatório-de-testes-etapa-1-do-semáforo-uma-placa).
 
 | Requisitos | Teste de aceitação | Evidência existente (etapa 1) |
 |---|---|---|
