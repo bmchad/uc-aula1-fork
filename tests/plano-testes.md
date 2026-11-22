@@ -337,8 +337,8 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 
 | Teste | Nível | Situação | Evidência existente |
 |---|---|---|---|
-| TA-01 | Unitário | Aprovado | - |
-| TA-02 | Unitário e integração | Pendente | - |
+| TA-01 | Unitário | Aprovado | placa?.log, placa?.mp4 |
+| TA-02 | Unitário e integração | Aprovado | parte?_analise.md, parte?.log, parte?.mp4 |
 | TA-03 | Integração | Pendente | - |
 | TA-04 | Sistema | Pendente | - |
 | TA-05 | Sistema | Pendente | — |
