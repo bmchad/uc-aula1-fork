@@ -2,7 +2,7 @@
  * Placa MESTRE: semáforo de carros e pedestres.
  *
  * Etapa 2: roda com a escrava (src/escrava.c). O mestre decide de quem é a
- * vez e tem o botão do modo noturno.
+ * vez e tem o botão do modo noturno. O botão de travessia fica na escrava.
  *   west build -b frdm_kl25z -d build/mestre -- -DPAPEL=mestre
  *   west flash -d build/mestre
  * Etapa 1: roda sozinho, sem a UART para a outra placa.
@@ -45,7 +45,8 @@ int main(void)
 	if (ret == 0) {
 		printk("Semaforo iniciado como %s\n",
 		       UMA_PLACA ? "PLACA UNICA (etapa 1)" : "MESTRE");
-		ret = semaforo_veiculo_iniciar();
+		/* O botão de travessia fica só na escrava; na placa única, na própria placa */
+		ret = semaforo_veiculo_iniciar(UMA_PLACA);
 	}
 
 	if (ret < 0) {

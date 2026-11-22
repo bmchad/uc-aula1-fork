@@ -32,7 +32,7 @@ int main(void)
 	}
 	if (ret == 0) {
 		printk("Semaforo iniciado como ESCRAVA\n");
-		ret = semaforo_veiculo_iniciar();
+		ret = semaforo_veiculo_iniciar(true);   /* o botão de travessia fica aqui */
 	}
 
 	if (ret < 0) {

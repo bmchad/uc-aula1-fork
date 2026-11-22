@@ -113,7 +113,6 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 - **Resultado esperado:**
   - Veículos: verde, amarelo e vermelho distinguíveis a olho nu. O amarelo (vermelho e verde do RGB juntos) se distingue do vermelho e do verde.
   - Pedestres: verde e vermelho distinguíveis.
-  - Em cada troca, a luz que o vídeo mostra é a que a serial registra.
 - **Evidência:** um vídeo e um log por placa.
 
 ### TA-02: tempos do ciclo normal
@@ -175,21 +174,23 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 ### TA-05: botão de travessia
 
 - **Nível:** sistema.
-- **Requisitos:** RF-07 a RF-11.
-- **Pré-condição:** parte A com `-DPAPEL=placa_unica`; parte B com as duas placas, testando o botão de cada uma. Captura da serial ligada.
+- **Requisitos:** RF-07 a RF-11, RF-21.
+- **Pré-condição:** parte A com `-DPAPEL=placa_unica`; parte B com as duas placas, com o botão na escrava. Captura da serial ligada.
 - **Etapas:**
   1. **RF-07:** dar um toque em 5 instantes diferentes do verde, entre 1 s e 3 s depois de ele acender.
   2. **RF-08:** dar um toque logo no começo do verde, nos primeiros 0,5 s. Repetir 5 vezes.
   3. **RF-09:** usar as medidas das etapas 1 e 2.
   4. **RF-10:** dar 5 toques durante o vermelho e 5 durante o amarelo.
   5. **RF-11:** dar 5 toques rápidos no mesmo verde.
+  6. **RF-21 (parte B):** encostar 5 vezes no GND o D10 do mestre, que não tem botão, em fases diferentes.
 - **Resultado esperado:**
   - **RF-07:** em todos os toques, `carros travessia pedida: verde encurtado`, depois `carros AMARELO` (0,99 a 1,01 s) e então `pedestres VERDE`.
   - **RF-08:** o verde dura de 1,00 a 1,05 s.
   - **RF-09:** atraso da linha `botao travessia: toque` até o `pedestres VERDE` de no máximo 2,05 s.
   - **RF-10:** cada toque aparece como `botao travessia: toque`, sem nenhuma linha `travessia pedida`, e as durações ficam dentro das faixas do TA-02.
   - **RF-11:** uma única linha `travessia pedida` e uma única passagem pelo amarelo. O verde seguinte dura 2,97 a 3,03 s.
-- **Observação (parte B):** um toque numa via encurta o vermelho da outra. Isso é esperado e não reprova o TA-02.
+  - **RF-21:** nenhuma linha `botao travessia: toque` na serial do mestre, e as durações do mestre dentro das faixas do TA-02.
+- **Observação (parte B):** um toque na via B encurta o vermelho da via A. Isso é esperado e não reprova o TA-02.
 - **Observação (RF-11):** na serial, toques a menos de 0,2 s um do outro aparecem como um só. Para contar os 5 toques, espaçe-os um pouco mais que isso.
 - **Capturas:** uma por etapa. Cada verde aceita só uma travessia, e um ciclo leva cerca de 8 s, então as etapas 1 e 2 levam cerca de 45 s cada; as outras, cerca de 20 s.
 - **Evidência:** os logs e o relatório da análise.
@@ -213,7 +214,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 - **Pré-condição:** parte A com `-DPAPEL=placa_unica`; parte B com as duas placas. Captura da serial ligada.
 - **Etapas:**
   1. Começar a captura e pedir o modo noturno. O pisca começa em até 8,4 s.
-  2. Manter o pisca por pelo menos 10 s, dando 5 toques no botão de travessia de cada placa durante ele.
+  2. Manter o pisca por pelo menos 10 s, dando 5 toques no botão de travessia durante ele (na escrava, na parte B).
   3. Sair do modo noturno e esperar o primeiro verde dos veículos terminar.
 
   Tudo numa captura só, de cerca de 35 s.
@@ -262,7 +263,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 - **Requisitos:** RS-01, RS-02, RS-04.
 - **Pré-condição:** as duas placas ligadas pelos fios, com a captura das duas seriais.
 - **Etapas:**
-  1. Capturar 2 minutos de operação, cobrindo: o modo normal; toques de travessia nas duas placas, em todas as fases; e pelo menos duas entradas e saídas do modo noturno. O critério mínimo do 01 é 30 s; 2 minutos dão uns 14 ciclos, o bastante para passar por todas as combinações.
+  1. Capturar 2 minutos de operação, cobrindo: o modo normal; toques de travessia na escrava, em todas as fases; e pelo menos duas entradas e saídas do modo noturno. O critério mínimo do 01 é 30 s; 2 minutos dão uns 14 ciclos, o bastante para passar por todas as combinações.
   2. Rodar a análise e procurar violações.
 - **Resultado esperado:** zero instantes com:
   - o verde dos pedestres aceso com os veículos da mesma via no verde ou no amarelo (RS-01);
@@ -292,7 +293,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
 ### TA-12: revisão de código
 
 - **Nível:** unitário.
-- **Requisitos:** RNF-01, RNF-02, RNF-03.
+- **Requisitos:** RNF-01, RNF-02, RNF-03 e a revisão de código do RF-21.
 - **Pré-condição:** o commit a revisar. **Quem revisa é o integrante que não escreveu o trecho.**
 - **Etapas:** preencher a lista abaixo, citando arquivo e linha de cada item.
 
@@ -303,6 +304,7 @@ Três bloqueios da primeira versão deste plano já foram resolvidos:
   | 3 | Há um mutex por semáforo, travado antes de acender a luz e destravado depois de apagar, em todos os caminhos, inclusive no pisca (RNF-02) |
   | 4 | As interrupções dos dois botões só chamam `k_sem_give`, e a da UART2 só copia o byte recebido para a fila com `k_msgq_put` sem espera (RNF-03) |
   | 5 | Nenhuma rotina de interrupção usa mutex, `printk` ou espera |
+  | 6 | O mestre não configura o botão de travessia: `semaforo_veiculo_iniciar(false)` (RF-21) |
 
 - **Resultado esperado:** todos os itens conferidos.
 

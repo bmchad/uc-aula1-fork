@@ -67,7 +67,7 @@
 
 		botao_travessia: botao_travessia {
 			gpios = <&gpiod 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
-			label = "Travessia (PTD0, D10)";
+			label = "Travessia, so na escrava e na placa unica (PTD0, D10)";
 		};
 	};
 };

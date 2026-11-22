@@ -15,7 +15,7 @@ O sistema controla **duas vias** que se cruzam. Cada placa controla uma via comp
 
 ### 1.2 Botão de travessia
 
-Cada via tem o seu botão de travessia, que age só nos veículos da própria via.
+Só a escrava tem o botão de travessia (RF-21), e ele age só nos veículos da via dela, a via B. Na placa única (etapa 1), o botão fica na própria placa.
 
 | ID | Requisito | Origem | Critério de aceitação |
 |---|---|---|---|
@@ -35,7 +35,7 @@ Cada via tem o seu botão de travessia, que age só nos veículos da própria vi
 | RF-15 | Em cada via, o pisca dos veículos e o dos pedestres devem estar em fase: os dois acendem e apagam juntos. | (dupla) | Nas trocas do pisca, a diferença entre os dois semáforos da mesma via é ≤ 50 ms |
 | RF-16 | O sistema deve entrar no modo noturno só no ponto seguro, sem interromper nenhuma fase do ciclo normal. | (dupla) | Pedido em cada fase do ciclo: o pisca começa no fim do vermelho dos veículos, nas duas vias, em até 8,4 s após o pedido. Os 0,4 s cobrem a troca de mensagens entre as placas |
 | RF-17 | Ao sair do modo noturno, o sistema deve voltar ao modo normal com as duas vias fechadas: em até 1 s após o pedido na placa que tem o botão, e em até 2 s na outra, que só fica sabendo quando a primeira sai do pisca. | (dupla) | 5 saídas: a primeira luz dos veículos depois do pisca é o vermelho nas duas vias, em até 1,05 s após a linha `botao noturno: pedido NORMAL` na placa do botão e em até 2,1 s na outra |
-| RF-18 | No modo noturno, o botão de travessia não deve ter efeito, nem durante o pisca nem depois dele. | (dupla) | Toques no botão de travessia das duas vias durante o pisca: o pisca continua dentro de RF-13 e RF-14, e, ao sair do modo, o primeiro verde dos veículos dura 3 s ± 1% |
+| RF-18 | No modo noturno, o botão de travessia não deve ter efeito, nem durante o pisca nem depois dele. | (dupla) | Toques no botão de travessia durante o pisca: o pisca continua dentro de RF-13 e RF-14, e, ao sair do modo, o primeiro verde dos veículos dura 3 s ± 1% |
 
 ### 1.4 Duas placas
 
@@ -43,6 +43,7 @@ Cada via tem o seu botão de travessia, que age só nos veículos da própria vi
 |---|---|---|---|
 | RF-19 | O sistema deve usar dois microcontroladores, um de cada integrante, cada um controlando uma via. As placas trocam mensagens por uma UART para que as vias se revezem: uma só abre depois de a outra fechar. | Enunciado §1 e §2 | Inspeção: duas placas ligadas, e o sistema completo só funciona com as duas. As duas placas registram `enlace conectado`, e na serial das duas as vias abrem alternadamente |
 | RF-20 | Só uma das placas deve ter o botão do modo noturno, e a outra deve seguir o modo dela. | (dupla) | Com o modo ligado e desligado 5 vezes, as duas placas entram e saem do pisca no mesmo ciclo |
+| RF-21 | Só a placa escrava deve ter o botão de travessia, e ele age só na via dela. O mestre não deve usar o pino do botão. | (dupla) | Revisão de código: o mestre não configura o D10. Ensaio: toques no D10 do mestre não aparecem na serial nem mudam o ciclo |
 
 ## 2. Requisitos de segurança
 
@@ -92,7 +93,7 @@ Os testes de aceitação (TA) serão detalhados em [tests/plano-testes.md](../te
 | RF-03, RF-04, RNF-05 | TA-02: tempos do ciclo normal | T2 (aprovado, uma placa) |
 | RF-05, RS-03 | TA-03: sincronismo e ordem das trocas | T3 (aprovado, uma placa) |
 | RF-06 | TA-04: partida e reinício | T1 (aprovado, um boot) |
-| RF-07 a RF-11 | TA-05: botão de travessia | T7 (pendente) |
+| RF-07 a RF-11, RF-21 | TA-05: botão de travessia | T7 (pendente) |
 | RF-12 | TA-06: botão do modo noturno | T5 (inconclusivo) |
 | RF-13 a RF-15, RF-18 | TA-07: pisca do modo noturno | T6 (pendente) |
 | RF-16, RF-17 | TA-08: entrada e saída do modo noturno | T4 (aprovado, uma placa) |

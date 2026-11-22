@@ -43,7 +43,7 @@ flowchart TB
 | `t_ped_vermelho` | `semaforo_pedestres` | 5 | Vermelho dos pedestres (D6) | `vez_ped_vermelho`; depois, `liberado` |
 | `t_ped_verde` | `semaforo_pedestres` | 5 | Verde dos pedestres (D7) | `vez_ped_verde`; depois, `encerrar` |
 | Thread do botão noturno | `modo_noturno` | 4 | — | Toque no botão. Na escrava fica bloqueada para sempre, porque a interrupção do botão não é instalada. |
-| `t_registro_travessia` | `semaforo_veiculo` | 5 | — | Toque no botão de travessia. Só registra o toque na serial (RNF-04); quem age no ciclo é a `t_carro_verde`. |
+| `t_registro_travessia` | `semaforo_veiculo` | 5 | — | Toque no botão de travessia. Só registra o toque na serial (RNF-04); quem age no ciclo é a `t_carro_verde`. No mestre, que não tem o botão, fica bloqueada para sempre. |
 | `t_enlace_rx` | `enlace` | 5 | — | Bytes recebidos pela UART2. Monta os quadros, descarta os inválidos e avisa quem espera a outra placa. Não roda na placa única. |
 | `t_enlace_tx` | `enlace` | 5 | — | Mudança no estado desta placa, ou 50 ms. Manda o quadro pela UART2. Não roda na placa única. |
 
@@ -114,7 +114,7 @@ stateDiagram-v2
 
 **Modo normal:** o ciclo da seção 1.3.
 
-**Travessia:** não é um modo à parte, só encurta o verde dos veículos.
+**Travessia:** não é um modo à parte, só encurta o verde dos veículos. O botão fica só na escrava, e na placa única da etapa 1 (RF-21). O mestre não configura o D10, e o verde dele sempre dura 3 s.
 - A interrupção do botão dá `k_sem_give(&pedido_travessia)`. A `t_carro_verde` espera esse sinal depois do 1 s mínimo do verde (RF-08) e, se ele chegar, encerra o verde (RF-07).
 - No começo de cada verde, a `t_carro_verde` zera o `pedido_travessia`. Por isso um toque com a via fechada, no amarelo ou no modo noturno não tem efeito, nem agora nem depois (RF-10, RF-18).
 - O botão não tem debounce no controle. Vários toques, ou o repique do fio, só dão vários `k_sem_give` num semáforo que conta até 1, e o efeito é o de um toque só (RF-11).
@@ -135,6 +135,8 @@ stateDiagram-v2
 | Mestre | `src/mestre.c` | `ENLACE_MESTRE`: manda VEZ e NOTURNO, recebe PARADO | Sim | Dura a vez da escrava |
 | Escrava | `src/escrava.c` | `ENLACE_ESCRAVA`: manda PARADO, recebe VEZ e NOTURNO | Não | Dura até o mestre dar a vez |
 
+O botão de travessia segue a mesma ideia do botão do modo noturno, só que na outra placa: fica na escrava, e também na placa única, para os testes da etapa 1. O mestre passa `false` para `semaforo_veiculo_iniciar` e não configura o D10 (RF-21).
+
 O papel é escolhido na compilação, pela variável `PAPEL` do `CMakeLists.txt`, com uma pasta de build por papel:
 
 ```bash
@@ -154,7 +156,6 @@ flowchart LR
     subgraph mestre["Placa mestre: via A"]
         mv["veículos: LED RGB"]
         mp["pedestres: D6 e D7"]
-        mbt["botão de travessia: D10"]
         mbn["botão noturno: D9"]
     end
     subgraph escrava["Placa escrava: via B"]
@@ -271,7 +272,7 @@ A regra geral: **na dúvida, a placa fica no vermelho.** Sem quadro válido, os 
 | RF-01, RF-02 | LED RGB para os veículos e LEDs avulsos no D6 e no D7 para os pedestres, em cada placa (2.1) |
 | RF-03, RF-04, RF-05 | Tempos das threads e cadeia de `k_sem` (1.2, 1.3); vermelho com duas placas (2.3) |
 | RF-06 | Threads começam bloqueadas, e o ciclo começa pelo vermelho (1.1); boot do handshake (2.3) |
-| RF-07 a RF-11, RF-18 | `t_carro_verde` e interrupção do botão de travessia (1.4) |
+| RF-07 a RF-11, RF-18, RF-21 | `t_carro_verde` e interrupção do botão de travessia, só na escrava (1.4, 1.5) |
 | RF-12 | Thread do botão noturno, com debounce (1.2, 1.4) |
 | RF-13 a RF-15 | Pisca na `t_carro_amarelo` e na `t_ped_vermelho` (1.4) |
 | RF-16, RF-17 | Ponto seguro na `t_carro_vermelho` e saída na `t_carro_amarelo` (1.4); com duas placas (2.4) |

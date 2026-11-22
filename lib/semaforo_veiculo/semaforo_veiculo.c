@@ -316,15 +316,14 @@ K_THREAD_DEFINE(id_t_carro_vermelho, TAMANHO_PILHA, t_carro_vermelho,
 K_THREAD_DEFINE(id_t_registro_travessia, TAMANHO_PILHA, t_registro_travessia,
 		NULL, NULL, NULL, PRIORIDADE_LED, 0, 0);
 
-int semaforo_veiculo_iniciar(void)
+int semaforo_veiculo_iniciar(bool usar_botao_travessia)
 {
 	int ret;
 
 	mestre = enlace_sou_mestre();
 	uma_placa = enlace_uma_placa();
 
-	if (!gpio_is_ready_dt(&led_vermelho) || !gpio_is_ready_dt(&led_verde) ||
-	    !gpio_is_ready_dt(&botao_travessia)) {
+	if (!gpio_is_ready_dt(&led_vermelho) || !gpio_is_ready_dt(&led_verde)) {
 		return -ENODEV;
 	}
 
@@ -338,22 +337,32 @@ int semaforo_veiculo_iniciar(void)
 		return ret;
 	}
 
-	/* Pull-up e ativo em nível baixo vêm do devicetree */
-	ret = gpio_pin_configure_dt(&botao_travessia, GPIO_INPUT);
-	if (ret < 0) {
-		return ret;
-	}
+	if (usar_botao_travessia) {
+		if (!gpio_is_ready_dt(&botao_travessia)) {
+			return -ENODEV;
+		}
 
-	ret = gpio_pin_interrupt_configure_dt(&botao_travessia, GPIO_INT_EDGE_TO_ACTIVE);
-	if (ret < 0) {
-		return ret;
-	}
+		/* Pull-up e ativo em nível baixo vêm do devicetree */
+		ret = gpio_pin_configure_dt(&botao_travessia, GPIO_INPUT);
+		if (ret < 0) {
+			return ret;
+		}
 
-	gpio_init_callback(&callback_travessia, isr_travessia, BIT(botao_travessia.pin));
-	ret = gpio_add_callback(botao_travessia.port, &callback_travessia);
-	if (ret < 0) {
-		return ret;
+		ret = gpio_pin_interrupt_configure_dt(&botao_travessia, GPIO_INT_EDGE_TO_ACTIVE);
+		if (ret < 0) {
+			return ret;
+		}
+
+		gpio_init_callback(&callback_travessia, isr_travessia, BIT(botao_travessia.pin));
+		ret = gpio_add_callback(botao_travessia.port, &callback_travessia);
+		if (ret < 0) {
+			return ret;
+		}
 	}
+	/*
+	 * Sem o botão, ninguém dá pedido_travessia: a t_carro_verde espera os 3 s
+	 * inteiros, e a t_registro_travessia fica bloqueada para sempre.
+	 */
 
 	k_sem_give(&vez_vermelho);   /* começa fechado */
 	return 0;

@@ -1,6 +1,6 @@
 ## 1. Hardware de cada placa
 
-As duas placas são FRDM-KL25Z com a mesma fiação; só o botão do modo noturno é exclusivo do mestre. Os pinos do código estão no [frdm_kl25z.overlay](../frdm_kl25z.overlay), que o Zephyr aplica sozinho porque tem o nome da placa. Este documento é a referência para a montagem.
+As duas placas são FRDM-KL25Z com a mesma fiação; só os botões mudam: o do modo noturno fica no mestre, e o de travessia, na escrava. Os pinos do código estão no [frdm_kl25z.overlay](../frdm_kl25z.overlay), que o Zephyr aplica sozinho porque tem o nome da placa. Este documento é a referência para a montagem.
 
 ### 1.1 Pinos
 
@@ -11,7 +11,7 @@ As duas placas são FRDM-KL25Z com a mesma fiação; só o botão do modo noturn
 | Veículos: amarelo | PTB18 + PTB19 | — | — | baixo | Os dois acesos juntos |
 | Pedestres: vermelho | PTC8 | D6 | `ped_vermelho` | alto | D6 → resistor de 220 Ω → perna longa (anodo) do LED vermelho; perna curta (catodo) → GND |
 | Pedestres: verde | PTC9 | D7 | `ped_verde` | alto | D7 → resistor de 220 Ω → perna longa do LED verde; perna curta → GND |
-| Botão de travessia | PTD0 | D10 | `botao_travessia` | baixo | Um fio no D10; para apertar, encostar a outra ponta no GND |
+| Botão de travessia | PTD0 | D10 | `botao_travessia` | baixo | **Só na escrava** (e na placa única). Um fio no D10; para apertar, encostar a outra ponta no GND |
 | Botão do modo noturno | PTD5 | D9 | `botao_noturno` | baixo | **Só no mestre.** Um fio no D9, encostado no GND |
 | Enlace: UART2 TX | PTD3 (ALT3) | D12 (J2, pino 10) | `uart2` | — | Fio para o D11 da outra placa (seção 1.4) |
 | Enlace: UART2 RX | PTD2 (ALT3) | D11 (J2, pino 8) | `uart2` | — | Fio do D12 da outra placa. Pull-up interno: com o fio solto, fica em repouso. |
@@ -284,17 +284,17 @@ Ela não muda o ciclo. Toques a menos de 0,2 s um do outro aparecem como um só 
 | `escrava_esperar_vez_zerada()` | Escrava | Só no boot. Espera VEZ = 0, avisando `aguardando VEZ = 0 do mestre`, e exige que VEZ fique em 0 por `ESTAVEL_MS`. |
 | `escrava_esperar_a_vez()` | Escrava | Retorna `true` para abrir ou `false` se o modo noturno foi pedido. Numa subida de VEZ ainda não usada, baixa PARADO, espera `GUARDA_MS` e confere VEZ de novo: se VEZ caiu, levanta PARADO e continua esperando. Confere o pedido do modo noturno a cada mudança no quadro do mestre, e no máximo a cada `CONSULTA_MS`. Se a espera passa de `AVISO_MS`, registra `aguardando a vez do mestre` e repete a cada `AVISO_MS`. |
 
-**`semaforo_veiculo_iniciar()`:** copia o papel do enlace, configura os LEDs apagados e o botão de travessia com interrupção, e dá `vez_vermelho`. Deve ser a última inicialização, porque começa o ciclo.
+**`semaforo_veiculo_iniciar(usar_botao_travessia)`:** copia o papel do enlace, configura os LEDs apagados e, se `usar_botao_travessia` for `true`, o botão de travessia com interrupção; depois dá `vez_vermelho`. A escrava e a placa única passam `true`; o mestre passa `false` e não usa o D10 (RF-21). Sem o botão, a `t_carro_verde` sempre espera os 3 s, e a `t_registro_travessia` fica bloqueada. Deve ser a última inicialização, porque começa o ciclo.
 
 ### 3.5 `src/mestre.c` e `src/escrava.c`
 
 Iniciam os módulos na ordem `enlace` → `modo_noturno` → `semaforo_pedestres` → `semaforo_veiculo` e registram o papel.
 
-| Arquivo | Enlace | Botão noturno | Mensagem de boot |
-|---|---|---|---|
-| `src/mestre.c` com `UMA_PLACA=1` | `ENLACE_UNICA` | Sim | `Semaforo iniciado como PLACA UNICA (etapa 1)` |
-| `src/mestre.c` | `ENLACE_MESTRE` | Sim | `Semaforo iniciado como MESTRE` |
-| `src/escrava.c` | `ENLACE_ESCRAVA` | Não | `Semaforo iniciado como ESCRAVA` |
+| Arquivo | Enlace | Botão noturno | Botão de travessia | Mensagem de boot |
+|---|---|---|---|---|
+| `src/mestre.c` com `UMA_PLACA=1` | `ENLACE_UNICA` | Sim | Sim | `Semaforo iniciado como PLACA UNICA (etapa 1)` |
+| `src/mestre.c` | `ENLACE_MESTRE` | Sim | Não | `Semaforo iniciado como MESTRE` |
+| `src/escrava.c` | `ENLACE_ESCRAVA` | Não | Sim | `Semaforo iniciado como ESCRAVA` |
 
 ## 4. Registro na serial
 
