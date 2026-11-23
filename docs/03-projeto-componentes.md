@@ -81,7 +81,7 @@ west build -b frdm_kl25z -d build/mestre -- -DPAPEL=mestre
 ```
 
 ```bash
-west flash -d build/mestre
+west flash -d build/mestre -r pyocd
 ```
 
 ## 3. Componentes de software

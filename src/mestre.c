@@ -4,10 +4,10 @@
  * Etapa 2: roda com a escrava (src/escrava.c). O mestre decide de quem é a
  * vez e tem o botão do modo noturno. O botão de travessia fica na escrava.
  *   west build -b frdm_kl25z -d build/mestre -- -DPAPEL=mestre
- *   west flash -d build/mestre
+ *   west flash -d build/mestre -r pyocd
  * Etapa 1: roda sozinho, sem a UART para a outra placa.
  *   west build -b frdm_kl25z -d build/placa_unica -- -DPAPEL=placa_unica
- *   west flash -d build/placa_unica
+ *   west flash -d build/placa_unica -r pyocd
  *
  * A lógica fica nas bibliotecas de lib/, as mesmas nas duas placas; este
  * arquivo só escolhe o papel. Projeto e fiação: src/README.md.

@@ -1,0 +1,49 @@
+14.929	mestre	*** Booting Zephyr OS build v4.5.0-660-ge08106651fc7 ***
+14.933	mestre	TU-03: enlace UART como MESTRE (SINAL invertido a cada 1000 ms)
+14.941	escrava	*** Booting Zephyr OS build v4.5.0-660-ge08106651fc7 ***
+14.947	escrava	TU-03: enlace UART como ESCRAVA (SINAL invertido a cada 1000 ms)
+14.950	mestre	24 ms | enlace conectado
+14.955	mestre	26 ms | TU-03 recebido SINAL=1 (primeira troca)
+14.987	escrava	47 ms | enlace conectado
+15.931	mestre	1010 ms | TU-03 enviado SINAL=1
+15.935	escrava	999 ms | TU-03 recebido SINAL=1 (primeira troca)
+15.944	escrava	1010 ms | TU-03 enviado SINAL=0
+15.950	mestre	1026 ms | TU-03 recebido SINAL=0 (intervalo 1000 ms)
+16.926	mestre	2010 ms | TU-03 enviado SINAL=0
+16.931	escrava	1999 ms | TU-03 recebido SINAL=0 (intervalo 1000 ms)
+16.939	escrava	2010 ms | TU-03 enviado SINAL=1
+16.944	mestre	2026 ms | TU-03 recebido SINAL=1 (intervalo 1000 ms)
+17.921	mestre	3010 ms | TU-03 enviado SINAL=1
+17.924	escrava	2999 ms | TU-03 recebido SINAL=1 (intervalo 1000 ms)
+17.933	escrava	3010 ms | TU-03 enviado SINAL=0
+17.938	mestre	3026 ms | TU-03 recebido SINAL=0 (intervalo 1000 ms)
+18.912	mestre	4010 ms | TU-03 enviado SINAL=0
+18.918	escrava	3999 ms | TU-03 recebido SINAL=0 (intervalo 1000 ms)
+18.927	escrava	4010 ms | TU-03 enviado SINAL=1
+18.932	mestre	4026 ms | TU-03 recebido SINAL=1 (intervalo 1000 ms)
+19.906	mestre	5010 ms | TU-03 enviado SINAL=1
+19.910	escrava	4999 ms | TU-03 recebido SINAL=1 (intervalo 1000 ms)
+19.921	escrava	5010 ms | TU-03 enviado SINAL=0
+19.923	mestre	5026 ms | TU-03 recebido SINAL=0 (intervalo 1000 ms)
+20.898	mestre	6010 ms | TU-03 enviado SINAL=0
+20.902	escrava	5999 ms | TU-03 recebido SINAL=0 (intervalo 1000 ms)
+20.911	escrava	6010 ms | TU-03 enviado SINAL=1
+20.917	mestre	6026 ms | TU-03 recebido SINAL=1 (intervalo 1000 ms)
+21.894	mestre	7010 ms | TU-03 enviado SINAL=1
+21.896	escrava	6999 ms | TU-03 recebido SINAL=1 (intervalo 1000 ms)
+21.904	escrava	7010 ms | TU-03 enviado SINAL=0
+21.912	mestre	7026 ms | TU-03 recebido SINAL=0 (intervalo 1000 ms)
+22.886	mestre	8010 ms | TU-03 enviado SINAL=0
+22.888	escrava	7999 ms | TU-03 recebido SINAL=0 (intervalo 1000 ms)
+22.895	escrava	8010 ms | TU-03 enviado SINAL=1
+22.900	mestre	8026 ms | TU-03 recebido SINAL=1 (intervalo 1000 ms)
+23.874	mestre	9010 ms | TU-03 enviado SINAL=1
+23.879	escrava	8999 ms | TU-03 recebido SINAL=1 (intervalo 1000 ms)
+23.890	escrava	9010 ms | TU-03 enviado SINAL=0
+23.892	mestre	9026 ms | TU-03 recebido SINAL=0 (intervalo 1000 ms)
+24.866	mestre	10010 ms | TU-03 enviado SINAL=0
+24.871	mestre	10012 ms | TU-03 resumo: 10 trocas recebidas, 0 fora da faixa
+24.880	escrava	10005 ms | TU-03 recebido SINAL=0 (intervalo 1006 ms)
+24.880	escrava	10010 ms | TU-03 enviado SINAL=1
+24.885	escrava	10013 ms | TU-03 resumo: 10 trocas recebidas, 0 fora da faixa
+24.889	mestre	10032 ms | TU-03 recebido SINAL=1 (intervalo 1006 ms)

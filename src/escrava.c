@@ -9,7 +9,7 @@
  * avisar quando fechou) fica em lib/semaforo_veiculo, a mesma biblioteca do
  * mestre; este arquivo só escolhe o papel. Projeto e fiação: src/README.md.
  *   west build -b frdm_kl25z -d build/escrava -- -DPAPEL=escrava
- *   west flash -d build/escrava
+ *   west flash -d build/escrava -r pyocd
  */
 
 #include <zephyr/kernel.h>
