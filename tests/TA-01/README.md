@@ -31,7 +31,7 @@ west flash -d build/escrava -r pyocd
 
 ### 4. Resultado obtido
 
-Pelo vídeo, é possível ver que os requisitos RF-01, RF-02 e RF-03 são satisfeitos: nos dois primeiros ciclos, as duas vias continuaram sincronizadas, sem nenhuma colisão; após um clique do botão do modo NOTURNO, ambas as placas entram no modo NOTURNO e após um clique do botão de travessia, o semáforo de carros fecha e o de pedestres abre, com a outra placa sincronizada também.
+Pelo vídeo, é possível ver que os requisitos [RF-01, RF-02 e RF-03](../../docs/01-requisitos.md) são satisfeitos: nos dois primeiros ciclos, as duas vias continuaram sincronizadas, sem nenhuma colisão; após um clique do botão do modo NOTURNO, ambas as placas entram no modo NOTURNO e após um clique do botão de travessia, o semáforo de carros fecha e o de pedestres abre, com a outra placa sincronizada também.
 
 ### 5. Conclusão
 

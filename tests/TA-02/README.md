@@ -29,7 +29,7 @@ west flash -d build/escrava -r pyocd
 
 ### 4. Resultado obtido
 
-Após desconectar uma placa, a outra entrou no modo ALERTA, como esperado.
+Após desconectar uma placa, a outra entrou no modo ALERTA, assim como foi especificado no [RF-04](../../docs/01-requisitos.md).
 
 ### 5. Conclusão
 
