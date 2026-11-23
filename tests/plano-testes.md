@@ -50,7 +50,7 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
 - **Etapas:**
   1. Rodar os códigos e resetar as placas
 - **Resultado esperado:** as duas vias devem estar sincronizadas
-- **Evidência:** 1 log e 1 vídeo
+- **Evidência:** 1 vídeo
 
 ## 3. Testes de sistema
 
@@ -62,7 +62,7 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
   1. Rodar o código e resetar a placa
   2. Apertar o botão do modo noturno
 - **Resultado esperado:** ao apertar o botão do modo noturno, a placa deve entrar no modo NOTURNO (semáforo de carros piscando amarelo e o de pedestres piscando vermelho)
-- **Evidência:** 1 log e 1 vídeo
+- **Evidência:** 1 vídeo
 
 ### TS-02: botão de travessia
 
@@ -73,7 +73,7 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
   3. Apertar o botão de travessia quando o semáforo de carros estiver verde
   4. Apertar o botão de travessia quando o semáforo de carros estiver amarelo
 - **Resultado esperado:** ao apertar o botão de travessia quando o semáforo dos carros estiver vermelho ou amarelo, nada deveria acontecer (e o tempo dos semáforos não deveria ser alterado). Caso o semáforo dos carros esteja verde, ele deve fechar e o semáforo de pedestres deve abrir
-- **Evidência:** 1 log e 1 vídeo
+- **Evidência:** 1 vídeo
 
 ## 4. Testes de aceitação
 
@@ -89,7 +89,7 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
   4. Apertar novamente o botão do modo noturno
   5. Apertar o botão de travessia em cada estado do semáforo de carros da placa mestra
 - **Resultado esperado:** o sistema deverá agir de acordo com os critérios estabelecidos em [RF-01](../docs/01-requisitos.md), [RF-02](../docs/01-requisitos.md) e [RF-03](../docs/01-requisitos.md)
-- **Evidência:** 1 log e 1 vídeo
+- **Evidência:** 1 vídeo
 
 ### TA-02: uma placa desconectada
 
@@ -101,7 +101,7 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
   3. Reconectar a placa. Resetá-las
   4. Desconectar a outra placa
 - **Resultado esperado:** o sistema deverá agir de acordo com o critério estabelecido em [RF-04](../docs/01-requisitos.md)
-- **Evidência:** 1 log e 1 vídeo
+- **Evidência:** 1 vídeo
 
 ### TA-03: fios de comunicação soltos
 
@@ -116,7 +116,7 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
   6. Desconectar o RX e o TX da mestra. Esperar ~4 segundos.
   7. Reconectar o RX e o TX da mestra. Esperar ~4 segundos.
 - **Resultado esperado:** o sistema deverá agir de acordo com o critério estabelecido em [RF-05](../docs/01-requisitos.md)
-- **Evidência:** 1 log e 1 vídeo
+- **Evidência:** 1 vídeo
 
 ### TA-04: placa resetada
 
@@ -127,7 +127,7 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
   2. Resetar a placa mestra. Esperar ~4 segundos.
   3. Resetar a placa escrava. Esperar ~4 segundos.
 - **Resultado esperado:** o sistema deverá agir de acordo com o critério estabelecido em [RF-06](../docs/01-requisitos.md)
-- **Evidência:** 1 log e 1 vídeo
+- **Evidência:** 1 vídeo
 
 ## 5. Situação atual
 
