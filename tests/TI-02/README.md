@@ -23,10 +23,6 @@ Flashear:
 west flash -d build/TI-02-mestre -r pyocd
 west flash -d build/TI-02-escrava -r pyocd
 ```
-Gravar os logs (alterar o N da placa):
-```bash
-python3 tests/ferramentas/captura_serial.py tests/TI-02/captura.log mestre=/dev/ttyACM0 escrava=/dev/ttyACM1
-```
 
 ### 4. Resultado obtido
 

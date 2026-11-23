@@ -60,8 +60,9 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
 - **Pré-condição:** placa compilada com o código contido no diretório do teste, resetada e com a serial ligada
 - **Etapas:**
   1. Rodar o código e resetar a placa
-  2. Apertar o botão do modo noturno
-- **Resultado esperado:** ao apertar o botão do modo noturno, a placa deve entrar no modo NOTURNO (semáforo de carros piscando amarelo e o de pedestres piscando vermelho)
+  2. Apertar o botão do modo noturno. Esperar ~4 segundos.
+  3. Apertar o botão do modo noturno novamente.
+- **Resultado esperado:** ao apertar o botão do modo noturno, a placa deve entrar no modo NOTURNO (semáforo de carros piscando amarelo e o de pedestres piscando vermelho). Depois de apertá-lo novamente, o sistema deverá voltar ao modo normal
 - **Evidência:** 1 vídeo
 
 ### TS-02: botão de travessia
