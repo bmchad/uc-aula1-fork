@@ -1,0 +1,14 @@
+# captura iniciada em 2026-11-22T22:56:01; o tempo do PC conta a partir daqui
+0.004	nota	unica: porta /dev/ttyACM0 aberta
+1.508	unica	*** Booting Zephyr OS build v4.5.0-660-ge08106651fc7 ***
+1.510	unica	TI-01: semaforos de pedestres e carros integrados (ciclo de 8 s)
+1.510	unica	11 ms | pedestres VERMELHO
+1.511	unica	13 ms | carros VERMELHO
+1.515	unica	16 ms | pedestres VERDE
+5.486	unica	4016 ms | pedestres VERMELHO
+5.488	unica	4019 ms | carros VERDE
+8.469	unica	7021 ms | carros AMARELO
+9.474	unica	8024 ms | carros VERMELHO
+9.478	unica	8027 ms | pedestres VERDE
+11.536	unica	10011 ms | TI-01 resumo: 49963 amostras; violacoes: A=0 (pedestres verde com carros abertos), B=0 (pedestres verde e vermelho juntos)
+11.551	unica	10011 ms | TI-01 resumo: maiores janelas: todos no vermelho 2700 us (3 trocas), pedestres apagados 300 us (1), carros apagados 0 us (0)
