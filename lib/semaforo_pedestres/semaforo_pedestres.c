@@ -2,8 +2,8 @@
  * Semáforo de pedestres.
  *
  * Ciclo das threads (cadeia de k_sem, uma luz por vez sob mutex_pedestres):
- *   t_ped_vermelho: acende, avisa `encerrado` e espera `liberado`. No modo
- *                   noturno, pisca enquanto espera.
+ *   t_ped_vermelho: acende, avisa `encerrado` e espera `liberado`. Nos modos
+ *                   NOTURNO e ALERTA, pisca enquanto espera.
  *   t_ped_verde:    acende e espera `encerrar`.
  */
 
@@ -44,8 +44,8 @@ static void t_ped_vermelho(void *p1, void *p2, void *p3)
 		bool aceso = true;
 
 		while (k_sem_take(&liberado, K_MSEC(PISCA_MS)) != 0) {
-			/* No modo noturno o vermelho pisca; fora dele fica aceso */
-			bool novo = modo_noturno_ativo() ? !aceso : true;
+			/* Nos modos NOTURNO e ALERTA o vermelho pisca; fora deles fica aceso */
+			bool novo = modo_pisca() ? !aceso : true;
 
 			if (novo != aceso) {
 				aceso = novo;

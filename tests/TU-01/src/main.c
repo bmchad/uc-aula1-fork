@@ -8,9 +8,9 @@
  *   - 4 s de vermelho -> semaforo_pedestres_liberar()  -> verde;
  *   - 4 s de verde    -> semaforo_pedestres_encerrar() -> vermelho.
  *
- * O módulo também consulta o modo noturno (modo_noturno_ativo). Para isolar o
- * teste, a função é substituída aqui por um dublê que responde sempre "não":
- * o modo noturno é testado no TS-01.
+ * O módulo também pergunta se deve piscar (modo_pisca: modo noturno ou
+ * ALERTA em vigor). Para isolar o teste, a função é substituída aqui por um
+ * dublê que responde sempre "não": o pisca é testado no TS-01 e nos TA.
  *
  * Saída na serial (115200 bps), uma linha por troca de luz:
  *   tempo ms | pedestres VERMELHO
@@ -26,8 +26,8 @@
 #define VERMELHO_MS 4000
 #define VERDE_MS    4000
 
-/* Dublê do lib/modo_noturno: o modo noturno nunca está ativo neste teste */
-bool modo_noturno_ativo(void)
+/* Dublê do lib/modo_noturno: as luzes nunca piscam neste teste */
+bool modo_pisca(void)
 {
 	return false;
 }

@@ -3,17 +3,17 @@
  *
  * Quadro de 4 bytes, de cada placa para a outra:
  *   [0] 0xA5                      início
- *   [1] bits                      SINAL, NOTURNO e MESTRE (papel de quem manda)
+ *   [1] bits                      SINAL, NOTURNO, MESTRE (papel de quem manda) e OUVE
  *   [2] contador                  aumenta a cada quadro (só para depuração)
  *   [3] ~(b0 + b1 + b2)           verificação
  *
  * Fluxo:
  *   - a interrupção da UART só copia cada byte recebido para uma fila
- *     (k_msgq_put sem espera), sem mutex e sem decidir nada (RNF-03);
+ *     (k_msgq_put sem espera), sem mutex e sem decidir nada;
  *   - t_enlace_rx monta os quadros, descarta os inválidos, guarda os bits da
- *     outra placa e avisa quem espera (sem_mudanca);
+ *     outra placa, calcula a falha do enlace e avisa quem espera (sem_mudanca);
  *   - t_enlace_tx manda o estado desta placa a cada PERIODO_MS e logo que
- *     ele muda (sem_envio).
+ *     ele muda (sem_envio), com o bit OUVE ligado enquanto recebe a outra.
  * Quem espera sempre confere o nível de novo depois de acordar, então um
  * aviso atrasado ou repetido não causa decisão errada.
  */
@@ -30,9 +30,11 @@
 #define BIT_SINAL         BIT(0)   /* VEZ (mestre) ou PARADO (escrava) */
 #define BIT_NOTURNO       BIT(1)   /* só o mestre manda */
 #define BIT_MESTRE        BIT(2)   /* papel de quem mandou o quadro */
-#define BITS_VALIDOS      (BIT_SINAL | BIT_NOTURNO | BIT_MESTRE)
+#define BIT_OUVE          BIT(3)   /* quem mandou está recebendo quadros válidos */
+#define BITS_VALIDOS      (BIT_SINAL | BIT_NOTURNO | BIT_MESTRE | BIT_OUVE)
 #define PERIODO_MS        50       /* reenvio do estado, mesmo sem mudança */
 #define PRAZO_MS          200      /* sem quadro válido por esse tempo: enlace perdido */
+#define INICIO_MS         500      /* tolerância do boot antes de declarar falha */
 #define TAMANHO_FILA      64       /* bytes recebidos à espera da t_enlace_rx */
 #define TAMANHO_PILHA     768
 /*
@@ -51,9 +53,10 @@ K_MSGQ_DEFINE(fila_rx, 1, TAMANHO_FILA, 1);   /* ISR da UART -> t_enlace_rx */
 
 static bool mestre;
 static bool sozinha;        /* etapa 1: sem a outra placa */
-static atomic_t local;      /* bits que esta placa manda */
+static atomic_t local;      /* bits que esta placa manda (sem o OUVE) */
 static atomic_t remoto;     /* bits da outra placa (0 sem enlace) */
 static atomic_t conectado;  /* 1 enquanto chegam quadros válidos */
+static atomic_t falha;      /* 1 com o enlace em falha: modo ALERTA */
 
 static uint8_t verificacao(const uint8_t *q)
 {
@@ -71,8 +74,8 @@ static void isr_uart(const struct device *dev, void *dados)
 	}
 }
 
-/* Guarda os bits da outra placa e avisa quem espera se algo mudou */
-static void atualiza(atomic_val_t bits, bool ok)
+/* Guarda os bits da outra placa; devolve true se algo mudou */
+static bool atualiza(atomic_val_t bits, bool ok)
 {
 	bool mudou = atomic_set(&remoto, bits) != bits;
 	bool estava = atomic_set(&conectado, ok) != 0;
@@ -81,19 +84,36 @@ static void atualiza(atomic_val_t bits, bool ok)
 		printk("%u ms | enlace %s\n", k_uptime_get_32(), ok ? "conectado" : "perdido");
 		mudou = true;
 	}
-	if (mudou) {
-		k_sem_give(&sem_mudanca);
+	return mudou;
+}
+
+/*
+ * O enlace está OK quando esta placa recebe a outra e a outra confirma (OUVE)
+ * que recebe esta. Nos primeiros INICIO_MS depois do boot a falha ainda não é
+ * declarada. Devolve true se a falha mudou.
+ */
+static bool atualiza_falha(int64_t inicio)
+{
+	bool ok = atomic_get(&conectado) && (atomic_get(&remoto) & BIT_OUVE);
+	bool nova = !ok && (k_uptime_get() - inicio > INICIO_MS);
+
+	if ((atomic_set(&falha, nova) != 0) == nova) {
+		return false;
 	}
+	printk("%u ms | enlace %s\n", k_uptime_get_32(), nova ? "FALHA" : "OK");
+	return true;
 }
 
 static void t_enlace_rx(void *p1, void *p2, void *p3)
 {
 	uint8_t q[4] = {0};
+	int64_t inicio = k_uptime_get();
 	int64_t ultimo_valido = 0;
 	bool avisou_papel = false;
 
 	while (1) {
 		uint8_t byte;
+		bool mudou = false;
 
 		if (k_msgq_get(&fila_rx, &byte, K_MSEC(PERIODO_MS)) == 0) {
 			memmove(q, q + 1, 3);
@@ -105,7 +125,8 @@ static void t_enlace_rx(void *p1, void *p2, void *p3)
 
 				if (dele_mestre != mestre) {
 					ultimo_valido = k_uptime_get();
-					atualiza(q[1] & (BIT_SINAL | BIT_NOTURNO), true);
+					mudou = atualiza(q[1] & (BIT_SINAL | BIT_NOTURNO | BIT_OUVE),
+							 true);
 				} else if (!avisou_papel) {
 					/* Mesmo programa nas duas placas, ou TX ligado no próprio RX */
 					printk("%u ms | enlace: quadro com o mesmo papel desta placa\n",
@@ -117,7 +138,12 @@ static void t_enlace_rx(void *p1, void *p2, void *p3)
 		}
 
 		if (atomic_get(&conectado) && k_uptime_get() - ultimo_valido > PRAZO_MS) {
-			atualiza(0, false);   /* estado seguro: os sinais da outra placa valem 0 */
+			mudou |= atualiza(0, false);   /* estado seguro: os sinais da outra placa valem 0 */
+		}
+
+		mudou |= atualiza_falha(inicio);
+		if (mudou) {
+			k_sem_give(&sem_mudanca);
 		}
 	}
 }
@@ -127,7 +153,13 @@ static void t_enlace_tx(void *p1, void *p2, void *p3)
 	uint8_t contador = 0;
 
 	while (1) {
-		uint8_t q[4] = {BYTE_INICIO, (uint8_t)atomic_get(&local), contador++, 0};
+		uint8_t bits = (uint8_t)atomic_get(&local);
+
+		if (atomic_get(&conectado)) {
+			bits |= BIT_OUVE;   /* avisa a outra placa que os quadros dela chegam */
+		}
+
+		uint8_t q[4] = {BYTE_INICIO, bits, contador++, 0};
 
 		q[3] = verificacao(q);
 		for (size_t i = 0; i < sizeof(q); i++) {
@@ -231,4 +263,9 @@ void enlace_publicar_noturno(bool ligado)
 bool enlace_ler_noturno(void)
 {
 	return (atomic_get(&remoto) & BIT_NOTURNO) != 0;
+}
+
+bool enlace_falhou(void)
+{
+	return atomic_get(&falha) != 0;
 }

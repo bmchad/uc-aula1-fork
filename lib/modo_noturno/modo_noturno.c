@@ -30,11 +30,28 @@ static const struct gpio_dt_spec botao =
 static struct gpio_callback callback_botao;
 
 K_SEM_DEFINE(sem_toque, 0, 1);   /* ISR do botão -> thread do botão */
-K_MUTEX_DEFINE(mutex_modo);      /* protege pedido_botao e ativo */
+K_MUTEX_DEFINE(mutex_modo);      /* protege pedido_botao, ativo, alerta e registrado */
 
 static bool com_botao;
 static bool pedido_botao;
-static bool ativo;
+static bool ativo;               /* modo noturno efetivo */
+static bool alerta;              /* modo ALERTA efetivo */
+static const char *registrado = "NORMAL";   /* último modo escrito na serial */
+
+/*
+ * Escreve o modo em vigor na serial, só quando ele muda. O ALERTA tem
+ * prioridade: desligar o noturno durante o ALERTA não escreve "NORMAL".
+ * Chamar com mutex_modo travado.
+ */
+static void registra_modo(void)
+{
+	const char *nome = alerta ? "ALERTA" : ativo ? "NOTURNO" : "NORMAL";
+
+	if (nome != registrado) {
+		registrado = nome;
+		printk("%u ms | modo %s\n", k_uptime_get_32(), nome);
+	}
+}
 
 static void isr_botao(const struct device *dev, struct gpio_callback *cb,
 		      uint32_t pinos)
@@ -116,13 +133,12 @@ void modo_noturno_aplicar(bool ligado)
 {
 	k_mutex_lock(&mutex_modo, K_FOREVER);
 	ativo = ligado;
+	registra_modo();
 	k_mutex_unlock(&mutex_modo);
 
 	if (com_botao) {
 		enlace_publicar_noturno(ligado);
 	}
-
-	printk("%u ms | modo %s\n", k_uptime_get_32(), ligado ? "NOTURNO" : "NORMAL");
 }
 
 bool modo_noturno_ativo(void)
@@ -132,4 +148,35 @@ bool modo_noturno_ativo(void)
 	k_mutex_unlock(&mutex_modo);
 
 	return ligado;
+}
+
+bool modo_alerta_pedido(void)
+{
+	return enlace_falhou();
+}
+
+void modo_alerta_aplicar(bool ligado)
+{
+	k_mutex_lock(&mutex_modo, K_FOREVER);
+	alerta = ligado;
+	registra_modo();
+	k_mutex_unlock(&mutex_modo);
+}
+
+bool modo_alerta_ativo(void)
+{
+	k_mutex_lock(&mutex_modo, K_FOREVER);
+	bool ligado = alerta;
+	k_mutex_unlock(&mutex_modo);
+
+	return ligado;
+}
+
+bool modo_pisca(void)
+{
+	k_mutex_lock(&mutex_modo, K_FOREVER);
+	bool pisca = ativo || alerta;
+	k_mutex_unlock(&mutex_modo);
+
+	return pisca;
 }

@@ -99,7 +99,7 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
 - **Etapas:**
   1. Rodar os códigos e resetar as placas
   2. Desconectar uma das placas
-  3. Reconectar a placa. Resetá-las
+  3. Reconectar a placa. 
   4. Desconectar a outra placa
 - **Resultado esperado:** o sistema deverá agir de acordo com o critério estabelecido em [RF-04](../docs/01-requisitos.md)
 - **Evidência:** 1 vídeo

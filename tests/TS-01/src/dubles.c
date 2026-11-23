@@ -59,3 +59,9 @@ bool enlace_ler_noturno(void)
 	/* Não é chamada: com o botão, o pedido vem dele, e não do enlace */
 	return false;
 }
+
+bool enlace_falhou(void)
+{
+	/* Placa única: o enlace nunca falha, e o modo ALERTA nunca entra */
+	return false;
+}

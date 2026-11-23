@@ -69,3 +69,25 @@ void modo_noturno_aplicar(bool ligado)
 {
 	ARG_UNUSED(ligado);
 }
+
+/* ---- modo ALERTA: o enlace nunca falha neste teste (testado nos TA-02 a TA-04) ---- */
+
+bool modo_alerta_pedido(void)
+{
+	return false;
+}
+
+bool modo_alerta_ativo(void)
+{
+	return false;
+}
+
+void modo_alerta_aplicar(bool ligado)
+{
+	ARG_UNUSED(ligado);
+}
+
+bool modo_pisca(void)
+{
+	return false;
+}
