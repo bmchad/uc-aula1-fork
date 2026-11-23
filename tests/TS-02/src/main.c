@@ -16,8 +16,9 @@
  *
  * Além das linhas que os módulos já mandam para a serial (cada troca de luz,
  * `botao travessia: toque` e `carros travessia pedida: verde encurtado`),
- * este programa tem um MONITOR: uma thread que lê os quatro LEDs e o botão a
- * cada 0,1 ms (1 tick).
+ * este programa tem um MONITOR: uma thread que lê os quatro LEDs e o botão,
+ * espera 1 tick (0,1 ms) e lê de novo. Com o tempo da própria leitura, sai
+ * uma amostra a cada 0,2 ms, mais ou menos.
  *   - Toques: cada vez que o botão passa de solto para apertado, ignorando
  *     novas bordas por TRAVA_MS (o repique do fio).
  *   - Fases dos carros: ao fim de cada fase (VERMELHO, VERDE ou AMARELO), a

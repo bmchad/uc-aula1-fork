@@ -6,10 +6,10 @@
 - **Etapas:**
   1. Rodar os códigos e resetar as placas
   2. Esperar dois ciclos completos
-  3. Apertar o botão do modo noturno, esperar aproximadamente 3 segundos
+  3. Apertar o botão do modo noturno, esperar 
   4. Apertar novamente o botão do modo noturno
   5. Apertar o botão de travessia 
-- **Resultado esperado:** o sistema deverá agir de acordo com os critérios estabelecidos em [RF-01](../docs/01-requisitos.md), [RF-02](../docs/01-requisitos.md) e [RF-03](../docs/01-requisitos.md)
+- **Resultado esperado:** o sistema deverá agir de acordo com os critérios estabelecidos em [RF-01](../../docs/01-requisitos.md), [RF-02](../../docs/01-requisitos.md) e [RF-03](../../docs/01-requisitos.md)
 - **Evidência:** 1 vídeo
 
 ### 2. Montagem

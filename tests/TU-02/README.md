@@ -1,11 +1,12 @@
 ### 1. TU-02: semáforo dos carros
 
-- **Descrição**: testa o correto funcionamento do semáforo dos pedestres (4s vermelho, 4s verde)
+- **Descrição**: testa o correto funcionamento do semáforo dos carros (4s vermelho, 3s verde, 1s amarelo)
 - **Pré-condição:** placa compilada com o código contido no diretório do teste, resetada e com a serial ligada
 - **Etapas:**
   1. Rodar o código e resetar a placa
-- **Resultado esperado:** os LEDs verde e vermelho devem piscar em sincronia (4s vermelho, 4s verde)
+- **Resultado esperado:** os LEDs verde, vermelho e amarelo devem piscar em sincronia (4s vermelho, 3s verde, 1s amarelo)
 - **Evidência:** 1 log e 1 vídeo por placa
+
 
 ### 2. Montagem
 
@@ -28,7 +29,7 @@ python3 tests/ferramentas/captura_serial.py tests/TU-02/placaN.log unica=/dev/tt
 
 ### 4. Resultado obtido
 
-Para as duas placas, é possível ver nitidamente os LEDs piscando. Já no lo, a placa1 apresentou uma duração de 4009ms para o estado vermelho, 3002ms para o estado verde e 10003ms para o estado amarelo. O mesmo ocorreu para a placa2.
+Para as duas placas, é possível ver nitidamente os LEDs piscando. Já no lo, a placa1 apresentou uma duração de 4009ms para o estado vermelho, 3002ms para o estado verde e 1003ms para o estado amarelo. O mesmo ocorreu para a placa2.
 
 ### 5. Conclusão
 

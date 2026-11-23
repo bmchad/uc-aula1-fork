@@ -9,7 +9,8 @@
  *     escrava: espera a vez);
  *   - antes de apagar, encerra os pedestres.
  * Regras do handshake: src/README.md, seção 5.2.
- * Na etapa 1 (uma placa só) não há handshake: o vermelho dura VERMELHO_MS.
+ * Na placa única (sem a outra placa) não há handshake: o vermelho dura
+ * VERMELHO_MS.
  *
  * Modo ALERTA (RF-04 a RF-06): quando o enlace com a outra placa falha, a
  * placa sai da fase em que está e pisca, como no modo noturno:
@@ -38,7 +39,7 @@
 #define VERDE_MS       3000
 #define VERDE_MIN_MS   1000    /* o botão de travessia não encurta abaixo disso */
 #define AMARELO_MS     1000
-#define VERMELHO_MS    4000    /* etapa 1: sem a outra placa, o vermelho tem tempo fixo */
+#define VERMELHO_MS    4000    /* placa única: sem a outra placa, o vermelho tem tempo fixo */
 #define PISCA_MS       1000
 #define GUARDA_MS      50      /* folga para a outra placa reagir a um sinal */
 #define RESPOSTA_MS    3000    /* mestre: prazo para a escrava pegar a vez */
@@ -89,7 +90,7 @@ K_SEM_DEFINE(pedido_travessia, 0, 1);   /* ISR do botão -> t_carro_verde */
 K_SEM_DEFINE(toque_travessia, 0, 1);    /* ISR do botão -> t_registro_travessia */
 
 static bool mestre;
-static bool uma_placa;       /* etapa 1: sem handshake */
+static bool uma_placa;       /* placa única: sem handshake */
 static bool vez_consumida;   /* escrava: já abriu com o VEZ = 1 atual */
 /*
  * true no boot e depois de cada ALERTA: o próximo vermelho recomeça o
@@ -441,7 +442,7 @@ static void t_carro_vermelho(void *p1, void *p2, void *p3)
 		enum decisao decisao;
 
 		if (uma_placa) {
-			/* Etapa 1: o vermelho dura o tempo da travessia e acabou */
+			/* Placa única: o vermelho dura o tempo da travessia e acabou */
 			k_msleep(VERMELHO_MS);
 			decisao = modo_noturno_pedido() ? NOTURNO : ABRIR;
 		} else if (mestre) {

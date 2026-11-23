@@ -23,14 +23,14 @@ Flashear:
 west flash -d build/TU-03-mestre -r pyocd
 west flash -d build/TU-03-escrava -r pyocd
 ```
-Gravar os logs (alterar o N da placa):
+Gravar os logs:
 ```bash
 python3 tests/ferramentas/captura_serial.py tests/TU-03/captura.log mestre=/dev/ttyACM0 escrava=/dev/ttyACM1
 ```
 
 ### 4. Resultado obtido
 
-Pelo log, é possível que a comunicação UART está funcionando (sinal está sendo enviado e recebido).
+Pelo log, é possível ver que a comunicação UART está funcionando (sinal está sendo enviado e recebido).
 
 ### 5. Conclusão
 

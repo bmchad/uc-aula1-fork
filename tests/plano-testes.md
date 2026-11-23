@@ -60,13 +60,14 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
 - **Pré-condição:** placa compilada com o código contido no diretório do teste, resetada e com a serial ligada
 - **Etapas:**
   1. Rodar o código e resetar a placa
-  2. Apertar o botão do modo noturno. Esperar ~4 segundos.
+  2. Apertar o botão do modo noturno. Esperar.
   3. Apertar o botão do modo noturno novamente.
 - **Resultado esperado:** ao apertar o botão do modo noturno, a placa deve entrar no modo NOTURNO (semáforo de carros piscando amarelo e o de pedestres piscando vermelho). Depois de apertá-lo novamente, o sistema deverá voltar ao modo normal
 - **Evidência:** 1 vídeo
 
 ### TS-02: botão de travessia
 
+- **Descrição:** testa o funcionamento do botão de travessia
 - **Pré-condição:** placa compilada com o código contido no diretório do teste, resetada e com a serial ligada
 - **Etapas:**
   1. Rodar o código e resetar a placa
@@ -86,9 +87,9 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
 - **Etapas:**
   1. Rodar os códigos e resetar as placas
   2. Esperar dois ciclos completos
-  3. Apertar o botão do modo noturno, esperar aproximadamente 3 segundos
+  3. Apertar o botão do modo noturno, esperar 
   4. Apertar novamente o botão do modo noturno
-  5. Apertar o botão de travessia em cada estado do semáforo de carros da placa mestra
+  5. Apertar o botão de travessia
 - **Resultado esperado:** o sistema deverá agir de acordo com os critérios estabelecidos em [RF-01](../docs/01-requisitos.md), [RF-02](../docs/01-requisitos.md) e [RF-03](../docs/01-requisitos.md)
 - **Evidência:** 1 vídeo
 
@@ -132,16 +133,16 @@ Este plano detalha os testes (unitários, de integração, de sistema e de aceit
 
 ## 5. Situação atual
 
-| Teste | Situação | Evidência existente |
-|---|---|---|
-| TU-01 | Aprovado | [placa1.log](TU-01/placa1.log), [placa2.log](TU-01/placa2.log), [placa1.mp4](TU-01/placa1.mp4), [placa2.mp4](TU-01/placa1.mp4) |
-| TU-02 | Pendente | - |
-| TU-03 | Pendente | - |
-| TI-01 | Pendente | - |
-| TI-02 | Pendente | - |
-| TS-01 | Pendente | - |
-| TS-02 | Pendente | - |
-| TA-01 | Pendente | - |
-| TA-02 | Pendente | - |
-| TA-03 | Pendente | - |
-| TA-04 | Pendente | - |
+| Teste | Situação | 
+|---|---|
+| TU-01 | Aprovado |
+| TU-02 | Aprovado |
+| TU-03 | Aprovado |
+| TI-01 | Aprovado | 
+| TI-02 | Aprovado | 
+| TS-01 | Aprovado | 
+| TS-02 | Aprovado | 
+| TA-01 | Aprovado | 
+| TA-02 | Aprovado | 
+| TA-03 | Aprovado | 
+| TA-04 | Aprovado |

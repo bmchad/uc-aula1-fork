@@ -6,7 +6,7 @@
   1. Rodar os códigos e resetar as placas
   2. Resetar a placa mestra. Esperar ~4 segundos.
   3. Resetar a placa escrava. Esperar ~4 segundos.
-- **Resultado esperado:** o sistema deverá agir de acordo com o critério estabelecido em [RF-06](../docs/01-requisitos.md)
+- **Resultado esperado:** o sistema deverá agir de acordo com o critério estabelecido em [RF-06](../../docs/01-requisitos.md)
 - **Evidência:** 1 vídeo
 
 ### 2. Montagem

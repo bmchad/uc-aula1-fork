@@ -8,8 +8,8 @@
  *   - mestre: sinal = VEZ, e também o bit NOTURNO;
  *   - escrava: sinal = PARADO.
  * As duas mandam também o bit OUVE: "estou recebendo os seus quadros".
- * O papel vem do programa gravado: src/mestre.c (que também é a placa única
- * da etapa 1) ou src/escrava.c.
+ * O papel vem do programa gravado: src/mestre.c (que também é a placa única,
+ * com -DPAPEL=placa_unica) ou src/escrava.c.
  *
  * Estado seguro: sem quadro válido da outra placa há mais de 200 ms, os
  * sinais dela valem 0 (sem vez, escrava não parada, modo normal). Um quadro
@@ -28,8 +28,8 @@
 #include <zephyr/kernel.h>
 
 enum enlace_papel {
-	ENLACE_UNICA,     /* etapa 1: não existe a outra placa */
-	ENLACE_MESTRE,    /* src/mestre.c na etapa 2 */
+	ENLACE_UNICA,     /* placa única: não existe a outra placa */
+	ENLACE_MESTRE,    /* src/mestre.c */
 	ENLACE_ESCRAVA,   /* src/escrava.c */
 };
 
@@ -44,7 +44,7 @@ int enlace_iniciar(enum enlace_papel papel);
 
 bool enlace_sou_mestre(void);
 
-/* true na etapa 1: a placa roda sozinha, sem handshake */
+/* true na placa única: a placa roda sozinha, sem handshake */
 bool enlace_uma_placa(void);
 
 /* Sinal desta placa: VEZ (mestre) ou PARADO (escrava). Manda na hora. */

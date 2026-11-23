@@ -1,6 +1,6 @@
 # Semáforos de pedestres e veículos
 
-Um cruzamento de duas ruas controlado por duas placas FRDM-KL25Z. Cada placa cuida de uma rua inteira, com o semáforo dos carros e o dos pedestres. As duas placas conversam por um fio para que **as duas ruas nunca abram ao mesmo tempo**.
+Um cruzamento de duas ruas controlado por duas placas FRDM-KL25Z. Cada placa cuida de uma rua inteira, com o semáforo dos carros e o dos pedestres. As duas placas conversam por UART para que **as duas ruas nunca abram ao mesmo tempo**.
 
 ## Demonstração
 

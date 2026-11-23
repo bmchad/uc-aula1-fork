@@ -1,5 +1,6 @@
 ### 1. TS-02: botão de travessia
 
+- **Descrição:** testa o funcionamento do botão de travessia
 - **Pré-condição:** placa compilada com o código contido no diretório do teste, resetada e com a serial ligada
 - **Etapas:**
   1. Rodar o código e resetar a placa
@@ -26,7 +27,7 @@ west flash -d build/TS-02 -r pyocd
 
 ### 4. Resultado obtido
 
-Pelo vídeo, é possível que o botão de travessia funciona corretamente: quando ele é apertado no estado VERMELHO ou AMARELO do semáforo de carros, nada ocorre. Quando ele é aperta no estado VERDE, o semáforo de carros fecha e o de pedestres abre.
+Pelo vídeo, é possível ver que o botão de travessia funciona corretamente: quando ele é apertado no estado VERMELHO ou AMARELO do semáforo de carros, nada ocorre. Quando ele é apertado no estado VERDE, o semáforo de carros fecha e o de pedestres abre.
 
 ### 5. Conclusão
 

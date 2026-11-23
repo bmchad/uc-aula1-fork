@@ -52,7 +52,7 @@ K_SEM_DEFINE(sem_envio, 0, 1);     /* mudança local -> t_enlace_tx manda na hor
 K_MSGQ_DEFINE(fila_rx, 1, TAMANHO_FILA, 1);   /* ISR da UART -> t_enlace_rx */
 
 static bool mestre;
-static bool sozinha;        /* etapa 1: sem a outra placa */
+static bool sozinha;        /* placa única: sem a outra placa */
 static atomic_t local;      /* bits que esta placa manda (sem o OUVE) */
 static atomic_t remoto;     /* bits da outra placa (0 sem enlace) */
 static atomic_t conectado;  /* 1 enquanto chegam quadros válidos */

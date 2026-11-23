@@ -12,8 +12,9 @@
  *   carros VERDE 3 s + AMARELO 1 s  <->  pedestres VERMELHO 4 s
  *
  * Além das linhas que os dois módulos já mandam para a serial (uma por troca
- * de luz), este programa tem um MONITOR: uma thread que lê os quatro LEDs a
- * cada 0,1 ms (1 tick) e confere a sincronia sozinha.
+ * de luz), este programa tem um MONITOR: uma thread que lê os quatro LEDs,
+ * espera 1 tick (0,1 ms) e lê de novo, e confere a sincronia sozinha. Com o
+ * tempo da própria leitura, sai uma amostra a cada 0,2 ms, mais ou menos.
  *   - Violações (devem ser 0):
  *       A. pedestres no verde sem os carros no vermelho fixo (carros no verde,
  *          no amarelo ou apagados);

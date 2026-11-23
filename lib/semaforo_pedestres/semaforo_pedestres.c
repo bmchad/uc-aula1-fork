@@ -50,7 +50,7 @@ static void t_ped_vermelho(void *p1, void *p2, void *p3)
 			if (novo != aceso) {
 				aceso = novo;
 				gpio_pin_set_dt(&led_vermelho, aceso);
-				/* Cada troca vai para a serial: é a evidência do RF-14 */
+				/* Cada troca vai para a serial: é a evidência do pisca */
 				printk("%u ms | pedestres VERMELHO %s\n", k_uptime_get_32(),
 				       aceso ? "aceso" : "apagado");
 			}

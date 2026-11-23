@@ -67,12 +67,14 @@ O sistema deve controlar semáforos de dois tipos: pedestres e carros, incluindo
 
 # Relatório de testes: etapa 1 do semáforo (uma placa)
 
+> **Registro histórico.** Este relatório é da primeira versão do projeto, com uma placa só e anterior aos requisitos atuais. Os testes atuais estão no [plano de testes](../tests/plano-testes.md). O `src/README.md` citado abaixo foi removido; a versão usada aqui está no commit [`04549c0`](https://github.com/bmchad/uc-aula1-fork/blob/04549c0/src/README.md).
+
 | | |
 |---|---|
 | **Aluno** | Bernardo Machado |
 | **Data dos testes** | 18/11/2026 |
 | **Firmware testado** | Commit [`8ae444e`](https://github.com/bmchad/uc-aula1-fork/commit/8ae444e), com `UMA_PLACA true` em [`src/main.c`](https://github.com/bmchad/uc-aula1-fork/blob/8ae444e/src/main.c) (hoje [`src/mestre.c`](../src/mestre.c)) |
-| **Projeto** | [`src/README.md`](../src/README.md): arquitetura das duas placas, e plano de testes. As conexões estão hoje no [03-projeto-componentes.md](03-projeto-componentes.md), e a montagem da etapa 1 é a da seção 1.5 |
+| **Projeto** | [`src/README.md`](https://github.com/bmchad/uc-aula1-fork/blob/04549c0/src/README.md) (removido depois): arquitetura das duas placas, e plano de testes. As conexões estão hoje no [03-projeto-componentes.md](03-projeto-componentes.md), e a montagem da etapa 1 é a da seção 1.5 |
 | **Evidências** | [`docs/semaforo/`](https://github.com/bmchad/uc-aula1-fork/tree/5890a32/docs/semaforo) (no commit `5890a32`; a pasta saiu do repositório depois): logs da serial, linha do tempo e o script de análise ([anexos](#anexos)) |
 | **Situação** | T0 a T4 aprovados; T5 inconclusivo; T6, T7 e T8 pendentes ([seção 6](#6-pendências)) |
 
@@ -175,7 +177,7 @@ O log tem 10 alternâncias em 7 s, algumas com só 133 ms entre elas. Não foi r
 - **T6:** o modo noturno ficou ativo só 1 s. É preciso refazer com ele ativo por pelo menos 6 s. O pisca não sai na serial, então a evidência precisa ser um vídeo, ou o firmware precisa imprimir cada troca.
 - **T7:** botão de travessia pelo D10.
 - **T8:** verificação visual com os LEDs funcionando, com um vídeo de um ciclo completo.
-- **Etapa 2:** testes de integração entre as duas placas ([`src/README.md`](../src/README.md), seção 7).
+- **Etapa 2:** testes de integração entre as duas placas ([`src/README.md`](https://github.com/bmchad/uc-aula1-fork/blob/04549c0/src/README.md), seção 7).
 
 ## Anexos
 

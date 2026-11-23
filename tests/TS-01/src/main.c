@@ -16,7 +16,9 @@
  *
  * Além das linhas que os módulos já mandam para a serial (toques do botão,
  * `modo NOTURNO`/`modo NORMAL` e cada troca do pisca), este programa tem um
- * MONITOR: uma thread que lê os quatro LEDs e o modo a cada 0,1 ms (1 tick).
+ * MONITOR: uma thread que lê os quatro LEDs e o modo, espera 1 tick (0,1 ms)
+ * e lê de novo. Com o tempo da própria leitura, sai uma amostra a cada
+ * 0,2 ms, mais ou menos.
  *   - Entradas e saídas do modo noturno, com o maior atraso entre o pedido
  *     (toque no botão) e a mudança do modo efetivo.
  *   - Meios períodos do pisca, só os inteiros (começam e terminam com o modo

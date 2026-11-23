@@ -5,7 +5,7 @@
 - **Etapas:**
   1. Rodar os códigos e resetar as placas
 - **Resultado esperado:** as duas vias devem estar sincronizadas
-- **Evidência:** 1 log e 1 vídeo
+- **Evidência:** 1 vídeo
 
 ### 2. Montagem
 

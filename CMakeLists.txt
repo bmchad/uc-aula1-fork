@@ -16,7 +16,7 @@ if(PAPEL STREQUAL "mestre")
 elseif(PAPEL STREQUAL "escrava")
   target_sources(app PRIVATE src/escrava.c)
 elseif(PAPEL STREQUAL "placa_unica")
-  # Etapa 1: o mestre roda sozinho, sem os fios para a outra placa
+  # Placa única: o mestre roda sozinho, sem os fios para a outra placa
   target_sources(app PRIVATE src/mestre.c)
   target_compile_definitions(app PRIVATE UMA_PLACA=1)
 else()

@@ -11,10 +11,11 @@ recebida:
     tempo do PC (s) <TAB> nome da placa <TAB> linha da placa
 
 O tempo do PC conta desde o início da captura e é o mesmo relógio para as duas
-placas: é ele que decide a ordem dos eventos entre as placas (RNF-04).
+placas: é ele que decide a ordem dos eventos entre as placas, porque os
+relógios das placas partem de instantes diferentes.
 
 Enquanto a captura roda, cada linha digitada no terminal vira uma nota no log,
-com o nome "nota" (por exemplo: "tirei o fio VEZ"). Ctrl+C encerra.
+com o nome "nota" (por exemplo: "soltei o TX da mestre"). Ctrl+C encerra.
 
 Se uma porta cair (USB desligado, placa sem energia), a captura registra isso
 e tenta reabrir a porta a cada 0,5 s, então dá para desligar e religar uma

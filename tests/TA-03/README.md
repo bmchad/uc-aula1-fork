@@ -10,7 +10,7 @@
   5. Reconectar o RX da mestra. Esperar ~4 segundos.
   6. Desconectar o RX e o TX da mestra. Esperar ~4 segundos.
   7. Reconectar o RX e o TX da mestra. Esperar ~4 segundos.
-- **Resultado esperado:** o sistema deverá agir de acordo com o critério estabelecido em [RF-05](../docs/01-requisitos.md)
+- **Resultado esperado:** o sistema deverá agir de acordo com o critério estabelecido em [RF-05](../../docs/01-requisitos.md)
 - **Evidência:** 1 vídeo
 
 ### 2. Montagem
@@ -32,7 +32,7 @@ west flash -d build/escrava -r pyocd
 
 ### 4. Resultado obtido
 
-No vídeo, é possível ver que, caso qualquer um dos fios (RX, TX ou ambos) é solto, as duas placas entram no modo alerta, assim como especifica o [RF-05](../../docs/01-requisitos.md).
+No vídeo, é possível ver que, caso qualquer um dos fios (RX, TX ou ambos) seja solto, as duas placas entram no modo alerta, assim como especifica o [RF-05](../../docs/01-requisitos.md).
 
 ### 5. Conclusão
 

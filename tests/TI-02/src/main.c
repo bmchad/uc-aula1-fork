@@ -14,7 +14,8 @@
  *
  * Além das linhas que os módulos já mandam para a serial, este programa tem
  * um MONITOR: uma thread que lê os quatro LEDs desta placa e o sinal do
- * enlace a cada 0,1 ms (1 tick).
+ * enlace, espera 1 tick (0,1 ms) e lê de novo. Com o tempo da própria
+ * leitura, sai uma amostra a cada 0,2 ms, mais ou menos.
  *   - Violações (devem ser 0):
  *       A. pedestres no verde sem os carros no vermelho fixo;
  *       B. pedestres com o verde e o vermelho acesos juntos;
