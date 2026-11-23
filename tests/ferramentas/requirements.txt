@@ -1,3 +1,0 @@
-# Ferramentas de teste (tests/ferramentas/)
-pyserial>=3.5        # captura_serial.py
-matplotlib>=3.5      # analisa_log.py --figura (opcional)

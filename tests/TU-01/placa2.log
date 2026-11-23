@@ -1,0 +1,6 @@
+3.053	unica	*** Booting Zephyr OS build v4.5.0-660-ge08106651fc7 ***
+3.057	unica	TU-01: semaforo de pedestres (4 s vermelho, 4 s verde)
+3.059	unica	9 ms | pedestres VERMELHO
+7.041	unica	4009 ms | pedestres VERDE
+11.004	unica	8009 ms | pedestres VERMELHO
+15.065	unica	12009 ms | pedestres VERDE
