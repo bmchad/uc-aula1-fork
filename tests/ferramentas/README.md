@@ -8,15 +8,13 @@ Seguir a montagem descrita na [seção 1 de 03-projeto-componentes.md (Hardware 
 
 Buildar:
 ```bash
-
+west build -b frdm_kl25z -d build/mestre -- -DPAPEL=mestre
+west build -b frdm_kl25z -d build/escrava -- -DPAPEL=escrava
 ```
 Flashear:
 ```bash
-
-```
-Gravar os logs (alterar o N da placa):
-```bash
-
+west flash -d build/mestre -r pyocd
+west flash -d build/escrava -r pyocd
 ```
 
 ### 4. Resultado obtido
