@@ -2,18 +2,6 @@
 
 Este plano detalha os testes (unitários, de integração, de sistema e de aceitação) do nosso projeto dos semáforos.
 
-OBS.: para obter os logs, rodar: 
-
-```bash
-python3 tests/ferramentas/captura_serial.py tests/TU-01/placa1.log unica=/dev/ttyACM0
-``` 
-
-para uma placa. Ou, para duas placas:
-
-```bash
-python3 tests/ferramentas/captura_serial.py tests/TU-03/captura.log mestre=/dev/ttyACM0 escrava=/dev/ttyACM1
-``` 
-
 ## 1. Testes unitários
 
 ### TU-01: semáforo dos pedestres
@@ -145,7 +133,7 @@ python3 tests/ferramentas/captura_serial.py tests/TU-03/captura.log mestre=/dev/
 
 | Teste | Situação | Evidência existente |
 |---|---|---|
-| TU-01 | Pendente | - |
+| TU-01 | Aprovado | [placa1.log](TU-01/placa1.log), [placa2.log](TU-01/placa2.log), [placa1.mp4](TU-01/placa1.mp4), [placa2.mp4](TU-01/placa1.mp4) |
 | TU-02 | Pendente | - |
 | TU-03 | Pendente | - |
 | TI-01 | Pendente | - |

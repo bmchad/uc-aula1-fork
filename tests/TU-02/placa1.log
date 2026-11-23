@@ -1,0 +1,8 @@
+2.082	unica	*** Booting Zephyr OS build v4.5.0-660-ge08106651fc7 ***
+2.087	unica	TU-02: semaforo dos carros (4 s vermelho, 3 s verde, 1 s amarelo)
+2.092	unica	10 ms | carros VERMELHO
+2.094	unica	12 ms | (duble) pedestres liberados
+6.135	unica	4016 ms | (duble) pedestres encerrados
+6.137	unica	4019 ms | carros VERDE
+9.148	unica	7021 ms | carros AMARELO
+10.148	unica	8024 ms | carros VERMELHO
